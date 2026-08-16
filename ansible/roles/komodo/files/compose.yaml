@@ -36,6 +36,13 @@ services:
     init: true
     restart: unless-stopped
     user: "900:900"
+    # HOME - uid 900 has no /etc/passwd entry in this image, so without
+    # this docker/buildx defaults HOME to "/" and fails trying to create
+    # /.docker (permission denied) on any stack that needs a build.
+    # /etc/komodo is the one bind mount below we know for sure is
+    # docker:docker-owned on the host (Ansible creates it explicitly).
+    environment:
+      - HOME=/etc/komodo
     depends_on:
       - core
     env_file: ./.env
