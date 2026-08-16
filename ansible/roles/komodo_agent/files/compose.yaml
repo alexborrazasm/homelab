@@ -8,10 +8,10 @@ services:
     # HOME - uid 900 has no /etc/passwd entry in this image, so without
     # this docker/buildx defaults HOME to "/" and fails trying to create
     # /.docker (permission denied) on any stack that needs a build.
-    # /etc/komodo is the one bind mount below we know for sure is
+    # /srv/docker/komodo is the one bind mount below we know for sure is
     # docker:docker-owned on the host (Ansible creates it explicitly).
     environment:
-      - HOME=/etc/komodo
+      - HOME=/srv/docker/komodo
     # No port published - Periphery only needs an outbound connection to
     # Core (PERIPHERY_CORE_ADDRESS below), never an inbound one.
     env_file: ./.env
@@ -19,4 +19,12 @@ services:
       - ./data/keys:/config/keys
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc:/proc
-      - /srv/docker/komodo:/etc/komodo
+      # Identity bind mount (same path inside and outside) - Periphery
+      # uses the host's docker.sock to run `docker compose`, so any
+      # relative volume path it resolves (e.g. "./caddyconf") gets built
+      # into an absolute path from ITS OWN filesystem view and handed to
+      # the host daemon as-is. If the container path didn't match the
+      # host path, the daemon would look for that absolute path on the
+      # real host - where it doesn't exist - instead of finding the repo
+      # Periphery actually cloned. See PERIPHERY_ROOT_DIRECTORY in .env.
+      - /srv/docker/komodo:/srv/docker/komodo
