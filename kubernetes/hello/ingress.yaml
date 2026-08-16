@@ -1,0 +1,27 @@
+---
+# Uses the staging issuer on purpose - this is a throwaway test app, no
+# reason to spend production Let's Encrypt rate limit on it. Switch the
+# annotation to letsencrypt-cloudflare once you actually need a trusted cert.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hello
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-cloudflare-staging
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - hello.alexborrazasm.dev
+      secretName: hello-tls
+  rules:
+    - host: hello.alexborrazasm.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hello
+                port:
+                  number: 80
