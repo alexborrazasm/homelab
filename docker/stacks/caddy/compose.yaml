@@ -13,7 +13,7 @@ services:
       - TZ=Europe/Madrid
       - CF_API_TOKEN=${CF_API_TOKEN}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./caddyconf:/etc/caddy
       - ./data:/data
       - ./config:/config
     restart: unless-stopped
