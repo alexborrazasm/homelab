@@ -12,3 +12,10 @@
   gather_facts: true
   roles:
     - komodo
+
+- name: Deploy Komodo's Periphery agent
+  hosts: komodo_agent
+  become: true
+  gather_facts: true
+  roles:
+    - komodo_agent

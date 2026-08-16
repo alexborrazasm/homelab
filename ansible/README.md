@@ -1,11 +1,13 @@
-# ansible/ cheat sheet
+# ansible/
 
-Full rationale/design decisions live in the repo root [README.md](../README.md).
-This is just the commands you'll actually type.
+Host and VM configuration.
+
+## Setup (once)
 
 ```bash
+sudo dnf install uv   # or your distro's equivalent
 cd ansible
-uv sync   # once, or after pyproject.toml changes
+uv sync   # also re-run after pyproject.toml changes
 ```
 
 ## pve (the hypervisor)
@@ -17,8 +19,7 @@ uv run ansible-playbook playbooks/proxmox-host.yml --check --diff
 # apply
 uv run ansible-playbook playbooks/proxmox-host.yml
 
-# apply a pending network change (writing /etc/network/interfaces never
-# auto-reloads - see root README for why)
+# apply a pending network change (writing the file never auto-reloads)
 uv run ansible-playbook playbooks/proxmox-host.yml -e proxmox_net_apply_reload=true
 
 # package upgrades (opt-in, skipped on a plain run)
@@ -46,9 +47,9 @@ uv run ansible-playbook playbooks/vms.yml --tags upgrade
 
 ## Docker hosts
 
-VMs tagged into the `docker`/`komodo` groups (`ansible_groups` in
-`terraform/locals.tf`) - see [docker/README.md](../docker/README.md) for
-what actually gets deployed.
+VMs tagged into the `docker`/`komodo`/`komodo_agent` groups
+(`ansible_groups` in `terraform/locals.tf`) - see
+[docker/README.md](../docker/README.md) for what actually gets deployed.
 
 ```bash
 uv run ansible-playbook playbooks/docker.yml --check --diff

@@ -1,0 +1,14 @@
+services:
+  periphery:
+    container_name: komodo-periphery
+    image: ghcr.io/moghtech/komodo-periphery:${COMPOSE_KOMODO_IMAGE_TAG:-2}
+    init: true
+    restart: unless-stopped
+    # No port published - Periphery only needs an outbound connection to
+    # Core (PERIPHERY_CORE_ADDRESS below), never an inbound one.
+    env_file: ./.env
+    volumes:
+      - ./data/keys:/config/keys
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc:/proc
+      - ${PERIPHERY_ROOT_DIRECTORY:-/etc/komodo}:${PERIPHERY_ROOT_DIRECTORY:-/etc/komodo}

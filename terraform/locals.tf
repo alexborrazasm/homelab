@@ -37,6 +37,32 @@ locals {
         { bridge = "vmbr0", ip = "192.168.9.10", gateway = "192.168.9.1" },
       ]
     }
+    iot = {
+      vm_id              = 111
+      memory_mb          = 4096
+      memory_floating_mb = 2048
+      swap_mb            = 1024
+      disk_gb            = 20
+      tags               = ["lan", "docker"]
+      dns_domain         = "home.arpa"
+      ansible_groups     = ["docker", "komodo_agent"]
+      networks = [
+        { bridge = "vmbr0", ip = "192.168.9.11", gateway = "192.168.9.1" },
+      ]
+    }
+    frontend = {
+      vm_id              = 310
+      memory_mb          = 2048
+      memory_floating_mb = 1024
+      swap_mb            = 1024
+      disk_gb            = 20
+      tags               = ["frontend", "dmz", "docker"]
+      dns_domain         = "home.arpa"
+      ansible_groups     = ["docker", "komodo_agent"]
+      networks = [
+        { bridge = "vmbr30", ip = "10.0.0.10", gateway = "10.0.0.1" },
+      ]
+    }
   }
 
   # Derives {group_name => [host names]} from each VM's ansible_groups, so

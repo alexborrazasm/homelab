@@ -6,6 +6,16 @@
     msg: "ansible/roles/docker only supports RedHat-family hosts right now"
   when: ansible_facts['os_family'] != "RedHat"
 
+- name: Create the docker group with a fixed GID
+  # Pinned so it's identical across every docker host - matters once
+  # anything shares volumes/NFS between them. Created before the package
+  # install below, which reuses an existing "docker" group instead of
+  # letting the postinst script pick whatever GID is next free.
+  ansible.builtin.group:
+    name: docker
+    gid: 900
+    system: true
+
 - name: Install dnf-plugins-core (needed for config-manager)
   ansible.builtin.package:
     name: dnf-plugins-core
@@ -63,8 +73,26 @@
     enabled: true
     state: started
 
-- name: "Add {{ ansible_user }} to the docker group"
+- name: Create the docker service user with a fixed UID
+  # Same UID:GID (900:900) on every docker host, for the same reason as
+  # the group above. Dedicated account that owns/runs every compose
+  # stack, kept separate from the personal login user so file ownership
+  # doesn't get muddled between people/processes. Reached via `sd` (the
+  # alias below), not a direct SSH login of its own.
   ansible.builtin.user:
-    name: "{{ ansible_user }}"
-    groups: docker
-    append: true
+    name: docker
+    uid: 900
+    group: docker
+    system: true
+    shell: /bin/bash
+    home: /srv/docker
+    create_home: true
+
+- name: Deploy the sd (sudo su docker) shell alias
+  ansible.builtin.copy:
+    dest: /etc/profile.d/zz-docker-alias.sh
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      alias sd='sudo su - docker'

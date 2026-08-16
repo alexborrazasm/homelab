@@ -1,36 +1,69 @@
 ---
-- name: Ensure /opt/komodo exists
+- name: Ensure /srv/docker/komodo exists
   ansible.builtin.file:
-    path: /opt/komodo
+    path: /srv/docker/komodo
     state: directory
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: docker
+    group: docker
     mode: "0755"
+
+- name: Ensure the data directories exist
+  # Bind mounts next to compose.yaml, not named volumes - plain
+  # directories are easy to later re-point at an NFS mount, unlike named
+  # volumes living under Docker's own /var/lib/docker/volumes.
+  ansible.builtin.file:
+    path: "/srv/docker/komodo/data/{{ item }}"
+    state: directory
+    owner: docker
+    group: docker
+    mode: "0755"
+  loop:
+    - mongo-data
+    - mongo-config
+    - keys
+    - backups
 
 - name: Deploy the Komodo compose file
   ansible.builtin.copy:
     src: compose.yaml
-    dest: /opt/komodo/compose.yaml
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    dest: /srv/docker/komodo/compose.yaml
+    owner: docker
+    group: docker
     mode: "0644"
   register: _komodo_compose
 
 - name: Deploy the Komodo environment file
   ansible.builtin.copy:
     src: .env
-    dest: /opt/komodo/.env
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    dest: /srv/docker/komodo/.env
+    owner: docker
+    group: docker
     mode: "0600"
   register: _komodo_env
 
 - name: Start Komodo (core, periphery, mongo)
-  # command, not community.docker.docker_compose_v2 - no extra collection
-  # needed for a plain `docker compose up`. Always reports changed (the
-  # command module can't diff compose state), but `up -d` itself is
-  # idempotent at the Docker level - safe to re-run.
-  ansible.builtin.command: docker compose -p komodo up -d
+  # Plain `sudo -u docker`, not Ansible's become_user - become_user tries
+  # to ACL the temp dir with BSD/macOS chmod syntax ("chmod A+..."), which
+  # fails on Linux. We're already root here (become: true at the play
+  # level), so sudo -u needs no password.
+  ansible.builtin.command: sudo -u docker -H docker compose -p komodo up -d
   args:
-    chdir: /opt/komodo
+    chdir: /srv/docker/komodo
   changed_when: true
+
+- name: Wait for Core to generate its keypair
+  ansible.builtin.wait_for:
+    path: /srv/docker/komodo/data/keys/core.pub
+    timeout: 30
+
+- name: Read Core's public key
+  # Exposed via hostvars to the komodo_agent role (same playbook run) -
+  # so a rebuilt Core's new key reaches every agent automatically instead
+  # of a stale copy committed to git.
+  ansible.builtin.slurp:
+    src: /srv/docker/komodo/data/keys/core.pub
+  register: _komodo_core_pub_raw
+
+- name: Expose Core's public key as a fact
+  ansible.builtin.set_fact:
+    komodo_core_public_key: "{{ _komodo_core_pub_raw.content | b64decode }}"

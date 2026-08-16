@@ -1,0 +1,48 @@
+---
+- name: Ensure /srv/docker/komodo-agent exists
+  ansible.builtin.file:
+    path: /srv/docker/komodo-agent
+    state: directory
+    owner: docker
+    group: docker
+    mode: "0755"
+
+- name: Ensure the keys data directory exists
+  ansible.builtin.file:
+    path: /srv/docker/komodo-agent/data/keys
+    state: directory
+    owner: docker
+    group: docker
+    mode: "0755"
+
+- name: Deploy the Periphery compose file
+  ansible.builtin.copy:
+    src: compose.yaml
+    dest: /srv/docker/komodo-agent/compose.yaml
+    owner: docker
+    group: docker
+    mode: "0644"
+
+- name: Deploy the Periphery environment file
+  ansible.builtin.template:
+    src: .env.j2
+    dest: /srv/docker/komodo-agent/.env
+    owner: docker
+    group: docker
+    mode: "0644"
+
+- name: Trust Core's public key
+  # Read via hostvars from the komodo role (same playbook run, panel
+  # plays first) - see ansible/roles/komodo/tasks/main.yml.
+  ansible.builtin.copy:
+    content: "{{ hostvars[groups['komodo'][0]]['komodo_core_public_key'] }}"
+    dest: /srv/docker/komodo-agent/data/keys/core.pub
+    owner: docker
+    group: docker
+    mode: "0644"
+
+- name: Start Periphery
+  ansible.builtin.command: sudo -u docker -H docker compose -p komodo-agent up -d
+  args:
+    chdir: /srv/docker/komodo-agent
+  changed_when: true

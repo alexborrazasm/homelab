@@ -92,6 +92,29 @@ not just organized by topic:
 - `os_upgrade`: shared by both playbooks, OS-family branched internally
   (apt+dpkg kernel check on Debian, `dnf` + `dnf needs-restarting -r` on
   RedHat) since the upgrade/reboot-check *shape* is identical either way.
+- `docker`: any VM in the `docker` `ansible_groups` group, via
+  `playbooks/docker.yml`. Installs Docker CE (RedHat-family only right
+  now) and creates the `docker` service account (fixed UID:GID `900:900`
+  across every host on purpose - see Non-obvious gotchas). Not
+  `common_tools` - Docker isn't universal like nvim/htop, it's opt-in per
+  VM.
+- `komodo`: the **one** host in the `komodo` group (`panel`) - deploys
+  the full [Komodo](https://komo.do) stack (Mongo + Core + Periphery,
+  self-managing) under `/srv/docker/komodo`. Exposes Core's public key as
+  an Ansible fact (`komodo_core_public_key`) for `komodo_agent` to read
+  via `hostvars` in the same playbook run.
+- `komodo_agent`: every other docker host (`frontend`, `iot`, ...) -
+  Periphery only, under `/srv/docker/komodo-agent`, trusting Core's
+  public key read live from the `komodo` role's fact rather than a
+  committed file (so a rebuilt Core's new key reaches every agent
+  automatically). No port published - Periphery only ever needs an
+  *outbound* connection to Core, confirmed live (see gotchas).
+
+**`docker/` layout**: application stacks live in `docker/stacks/<name>/compose.yaml`,
+but unlike the old Kubernetes/ArgoCD setup, nothing auto-discovers them from
+git - each one is registered once in Komodo's UI (**Stacks -> Create
+Stack**, pointed at the repo + path), then polling/webhook sync takes
+over. See `docker/README.md`.
 
 **Network**: physical NIC is literally named `nic0` (renamed via
 udev/.link, not a placeholder). `vmbr0` is the LAN, native/untagged VLAN
@@ -141,3 +164,33 @@ second/third entry in that VM's `networks` list.
 - **API token secrets are shown once.** `terraform_api.yml` prints the
   token via `debug` only when it's actually created; it's not retrievable
   from Proxmox afterward. Goes in `terraform/.env` (gitignored).
+- **AlmaLinux's cloud image is missing `kernel-modules-extra` here too.**
+  Same root cause as k3s used to hit (before it was pulled out): Docker's
+  bridge networking needs `xt_addrtype` for its iptables NAT rules, which
+  isn't installed by default. `roles/docker/tasks/main.yml` installs
+  `kernel-modules-extra-{{ ansible_facts['kernel'] }}` and loads the
+  module immediately, same pattern as before.
+- **Changing the `docker` group's GID doesn't update a running daemon's
+  socket.** `/var/run/docker.sock` is actually created by the
+  `docker.socket` systemd unit (socket activation), not `docker.service`
+  - restarting the service alone leaves the socket owned by the *old*
+  GID. Confirmed live when migrating `panel`'s `docker` user to a fixed
+  UID/GID: `systemctl restart docker.socket docker.service` (both) fixed
+  it. Only matters when changing an *existing* host's GID after the fact
+  - a fresh install never hits this, since `docker` role creates the
+  group with its fixed GID before Docker is ever installed.
+- **`komodo_agent`'s Periphery needs no inbound port at all.** It only
+  ever dials *out* to Core (`PERIPHERY_CORE_ADDRESS`) - confirmed live
+  that Komodo's UI "Address" field (which makes Core dial back to
+  Periphery) is optional, not required for the Server to show connected.
+  `komodo_agent/files/compose.yaml` doesn't publish a port for exactly
+  this reason - less exposed surface on a DMZ-facing host for no
+  functional gain.
+- **DMZ↔LAN traffic is asymmetric by design, and both directions need
+  their own router rule.** LAN→DMZ was already open (general policy);
+  DMZ→LAN needed an explicit rule per port (`frontend`'s Periphery
+  reaching `panel`'s Core on 9120) - confirmed live when the two
+  directions behaved completely differently for what looked like the
+  same problem. Keep any new DMZ→LAN rule as narrow as possible (specific
+  port, specific destination IP) - that direction is the one that matters
+  if a DMZ host ever gets compromised.
