@@ -44,6 +44,17 @@ uv run ansible-playbook playbooks/vms.yml --tags upgrade --check --diff
 uv run ansible-playbook playbooks/vms.yml --tags upgrade
 ```
 
+## Docker hosts
+
+VMs tagged into the `docker`/`komodo` groups (`ansible_groups` in
+`terraform/locals.tf`) - see [docker/README.md](../docker/README.md) for
+what actually gets deployed.
+
+```bash
+uv run ansible-playbook playbooks/docker.yml --check --diff
+uv run ansible-playbook playbooks/docker.yml
+```
+
 ## Everything else
 
 ```bash

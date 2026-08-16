@@ -1,0 +1,36 @@
+---
+- name: Ensure /opt/komodo exists
+  ansible.builtin.file:
+    path: /opt/komodo
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Deploy the Komodo compose file
+  ansible.builtin.copy:
+    src: compose.yaml
+    dest: /opt/komodo/compose.yaml
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  register: _komodo_compose
+
+- name: Deploy the Komodo environment file
+  ansible.builtin.copy:
+    src: .env
+    dest: /opt/komodo/.env
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+  register: _komodo_env
+
+- name: Start Komodo (core, periphery, mongo)
+  # command, not community.docker.docker_compose_v2 - no extra collection
+  # needed for a plain `docker compose up`. Always reports changed (the
+  # command module can't diff compose state), but `up -d` itself is
+  # idempotent at the Docker level - safe to re-run.
+  ansible.builtin.command: docker compose -p komodo up -d
+  args:
+    chdir: /opt/komodo
+  changed_when: true

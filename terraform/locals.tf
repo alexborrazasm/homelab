@@ -30,8 +30,9 @@ locals {
       memory_floating_mb = 1024
       swap_mb            = 1024
       disk_gb            = 20
-      tags               = ["test", "dmz"]
+      tags               = ["test", "dmz", "docker"]
       dns_domain         = "home.arpa"
+      ansible_groups     = ["docker", "komodo"]
       networks = [
         { bridge = "vmbr30", ip = "10.0.0.10", gateway = "10.0.0.1" },
       ]

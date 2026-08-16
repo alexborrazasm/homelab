@@ -1,0 +1,70 @@
+---
+# RedHat-family only for now - every docker host is an AlmaLinux VM. Add a
+# Debian branch (like common_tools does) if a Debian docker host shows up.
+- name: Fail on unsupported OS family
+  ansible.builtin.fail:
+    msg: "ansible/roles/docker only supports RedHat-family hosts right now"
+  when: ansible_facts['os_family'] != "RedHat"
+
+- name: Install dnf-plugins-core (needed for config-manager)
+  ansible.builtin.package:
+    name: dnf-plugins-core
+    state: present
+
+- name: Add the Docker CE repository
+  ansible.builtin.command: dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+  args:
+    creates: /etc/yum.repos.d/docker-ce.repo
+
+- name: Install Docker
+  ansible.builtin.package:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+    update_cache: true
+
+- name: Check whether the netfilter addrtype module is present
+  # AlmaLinux's cloud image is missing kernel-modules-extra - Docker's
+  # bridge networking needs xt_addrtype for its iptables NAT rules.
+  ansible.builtin.command: modprobe xt_addrtype
+  register: _xt_addrtype_check
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Install kernel-modules-extra for the running kernel
+  ansible.builtin.dnf:
+    name: "kernel-modules-extra-{{ ansible_facts['kernel'] }}"
+    state: present
+  when: _xt_addrtype_check.rc != 0
+  register: _kmod_extra_installed
+
+- name: Load xt_addrtype now (don't wait for a reboot)
+  ansible.builtin.command: modprobe xt_addrtype
+  when: _kmod_extra_installed is changed
+  changed_when: true
+
+- name: Load xt_addrtype on every future boot too
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/docker-netfilter.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      xt_addrtype
+
+- name: Enable and start Docker
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+
+- name: "Add {{ ansible_user }} to the docker group"
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: true
