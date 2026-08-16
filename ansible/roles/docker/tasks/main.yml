@@ -88,6 +88,17 @@
     home: /srv/docker
     create_home: true
 
+- name: Let the docker group traverse/read /srv/docker
+  # Home dirs default to 0700 (owner-only) - loosen just enough for group
+  # members (e.g. alex, added to the docker group below) to browse in,
+  # without opening it to every user on the box.
+  ansible.builtin.file:
+    path: /srv/docker
+    state: directory
+    owner: docker
+    group: docker
+    mode: "0750"
+
 - name: Deploy the sd (sudo su docker) shell alias
   ansible.builtin.copy:
     dest: /etc/profile.d/zz-docker-alias.sh
