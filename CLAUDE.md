@@ -57,8 +57,8 @@ network = the one Ansible connects through — and the optional
 `networks[0].gateway`, not a separate field — a fixed DNS IP would be
 unreachable from VMs on `vmbr20`/`vmbr30`, since each segment's router is
 the only resolver they have a route to. `ansible_groups` puts a VM in
-extra generated-inventory groups beyond `vms` (e.g. the k3s nodes are in
-`k3s`/`k3s_server`/`k3s_agent`), so a playbook can target a subset —
+extra generated-inventory groups beyond `vms`, so a playbook can target
+a subset of VMs without touching every one —
 `terraform/locals.tf`'s `vm_groups_hosts` local derives
 `{group => [hosts]}` from every VM's `ansible_groups` and
 `inventory.tftpl` emits one Ansible group per key. That one map feeds
@@ -92,11 +92,6 @@ not just organized by topic:
 - `os_upgrade`: shared by both playbooks, OS-family branched internally
   (apt+dpkg kernel check on Debian, `dnf` + `dnf needs-restarting -r` on
   RedHat) since the upgrade/reboot-check *shape* is identical either way.
-- `k3s`: only the 3 nodes in the `k3s`/`k3s_server`/`k3s_agent` inventory
-  groups (`ansible_groups` in `terraform/locals.tf`), via
-  `playbooks/k3s.yml` — two plays, server first (exposes
-  `k3s_node_token` as a fact for the second play's agents to join with,
-  read via `hostvars`), then agents.
 
 **Network**: physical NIC is literally named `nic0` (renamed via
 udev/.link, not a placeholder). `vmbr0` is the LAN, native/untagged VLAN
@@ -143,23 +138,6 @@ second/third entry in that VM's `networks` list.
   is granted, in `proxmox_host/tasks/terraform_api.yml`. Its role is kept
   in sync on every Ansible run (`pveum role modify`, not just create),
   since `pveum role add` only fires once.
-- **`firewalld` breaks k3s on RHEL-family nodes.** It's an nftables
-  wrapper that doesn't know about the iptables chains flannel/kube-proxy
-  create for the CNI - a `firewall-cmd --reload` (or just its normal
-  operation) wipes them out from under k3s, breaking pod networking with
-  errors like `open /run/flannel/subnet.env: no such file or directory`.
-  This matches k3s's own upstream guidance: `roles/k3s/tasks/prereqs.yml`
-  disables firewalld outright on the 3 k3s nodes, not just punches holes
-  in it - safe here since they're already isolated at the VLAN/router
-  level.
-- **AlmaLinux's cloud image is missing `kernel-modules-extra`.**
-  `xt_conntrack`/`xt_comment`/`nft_compat` (what iptables-nft needs to
-  write kube-proxy/flannel's rules) aren't installed by default, so
-  `modprobe xt_conntrack` fails with "not found" even with firewalld
-  fully stopped - this is a separate root cause from the firewalld one
-  above, not the same bug twice. `roles/k3s/tasks/prereqs.yml` installs
-  `kernel-modules-extra-{{ ansible_facts['kernel'] }}` and loads the
-  modules immediately rather than waiting for a reboot.
 - **API token secrets are shown once.** `terraform_api.yml` prints the
   token via `debug` only when it's actually created; it's not retrievable
   from Proxmox afterward. Goes in `terraform/.env` (gitignored).

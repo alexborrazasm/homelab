@@ -9,8 +9,7 @@
   check_mode: false
 
 - name: Create and enable a swap file
-  # swap_mb: 0 means the VM shouldn't have swap at all (e.g. k3s nodes -
-  # kubelet hard-fails on boot if it detects active swap).
+  # swap_mb: 0 means the VM shouldn't have swap at all.
   when:
     - _swap_check.stdout | trim == ""
     - vm_provision_swap_mb | int > 0

@@ -16,7 +16,7 @@ locals {
   #   cloudinit_upgrade  = true                     # optional, default true - full package upgrade via cloud-init on first boot
   #   tags               = ["service", "homelab"]   # optional, default [] - order doesn't matter, sorted in modules/vm (Proxmox sorts server-side anyway)
   #   dns_domain         = "home.arpa" # optional, default null - DNS search domain. DNS server is always networks[0].gateway, not a separate field
-  #   ansible_groups     = ["k3s", "k3s_server"]   # optional, default [] - extra Ansible groups (beyond "vms"), so playbooks can target a subset (e.g. only k3s nodes) without touching every VM
+  #   ansible_groups     = ["db"]                   # optional, default [] - extra Ansible groups (beyond "vms"), so playbooks can target a subset (e.g. only db nodes) without touching every VM
   #   networks = [
   #     # bridge: vmbr0 (LAN), vmbr20 (IOT), vmbr30 (DMZ), vmbrSAN (direct NAS/NFS access)
   #     { bridge = "vmbr0", ip = "192.168.9.99", gateway = "192.168.9.1" },  # first = the one Ansible connects to. ip has no /24 - the module appends it
@@ -25,64 +25,23 @@ locals {
   # }
   vms = {
     test = {
-      vm_id              = 100
+      vm_id              = 310
       memory_mb          = 2048
       memory_floating_mb = 1024
       swap_mb            = 1024
       disk_gb            = 20
-      tags               = ["test", "lan"]
+      tags               = ["test", "dmz"]
       dns_domain         = "home.arpa"
-      # no ansible_groups on purpose - proves a regular VM stays out of
-      # the k3s group automatically, without needing to opt out of anything.
-      networks = [
-        { bridge = "vmbr0", ip = "192.168.9.10", gateway = "192.168.9.1" },
-      ]
-    }
-    k3s-server = {
-      vm_id              = 310
-      memory_mb          = 4096
-      memory_floating_mb = 0
-      swap_mb            = 0
-      disk_gb            = 20
-      tags               = ["k3s", "k3s-server", "dmz"]
-      dns_domain         = "home.arpa"
-      ansible_groups     = ["k3s", "k3s_server"]
       networks = [
         { bridge = "vmbr30", ip = "10.0.0.10", gateway = "10.0.0.1" },
-      ]
-    }
-    k3s-agent1 = {
-      vm_id              = 311
-      memory_mb          = 3072
-      memory_floating_mb = 0
-      swap_mb            = 0
-      disk_gb            = 20
-      tags               = ["k3s", "k3s-agent", "dmz"]
-      dns_domain         = "home.arpa"
-      ansible_groups     = ["k3s", "k3s_agent"]
-      networks = [
-        { bridge = "vmbr30", ip = "10.0.0.11", gateway = "10.0.0.1" },
-      ]
-    }
-    k3s-agent2 = {
-      vm_id              = 312
-      memory_mb          = 3072
-      memory_floating_mb = 0
-      swap_mb            = 0
-      disk_gb            = 20
-      tags               = ["k3s", "k3s-agent", "dmz"]
-      dns_domain         = "home.arpa"
-      ansible_groups     = ["k3s", "k3s_agent"]
-      networks = [
-        { bridge = "vmbr30", ip = "10.0.0.12", gateway = "10.0.0.1" },
       ]
     }
   }
 
   # Derives {group_name => [host names]} from each VM's ansible_groups, so
-  # inventory.tftpl can emit extra Ansible groups (e.g. "k3s") without
-  # every VM needing to belong to them - keeps a future non-k3s VM out of
-  # any k3s-scoped playbook automatically, just by omitting the field.
+  # inventory.tftpl can emit extra Ansible groups (e.g. "db") without every
+  # VM needing to belong to them - keeps a VM that doesn't need a group out
+  # of any group-scoped playbook automatically, just by omitting the field.
   vm_group_names = toset(flatten([
     for name, cfg in local.vms : try(cfg.ansible_groups, [])
   ]))

@@ -44,23 +44,6 @@ uv run ansible-playbook playbooks/vms.yml --tags upgrade --check --diff
 uv run ansible-playbook playbooks/vms.yml --tags upgrade
 ```
 
-## k3s cluster
-
-3 nodes (`k3s-server`, `k3s-agent1`, `k3s-agent2`), all DMZ, provisioned
-like any other VM above first. Then:
-
-```bash
-uv run ansible-playbook playbooks/k3s.yml
-```
-
-Server installs first (exposes its node-token as a fact), agents join
-using it - always run the whole playbook, not `--limit` to a single
-agent, unless the server's already up. `kubectl` on `k3s-server`:
-
-```bash
-sudo /usr/local/bin/k3s kubectl get nodes
-```
-
 ## Everything else
 
 ```bash

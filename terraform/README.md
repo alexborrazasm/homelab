@@ -68,10 +68,10 @@ idempotent, so it's a no-op when there's nothing to grow).
 
    `ansible_groups` (default `[]`) puts the VM in extra Ansible groups
    beyond `vms` (which every VM belongs to automatically), so a playbook
-   can target a subset without touching every VM - e.g. the k3s nodes are
-   in `k3s` (+ `k3s_server`/`k3s_agent`), so a future `playbooks/k3s.yml`
-   with `hosts: k3s` only ever runs there, and any non-k3s VM added later
-   just doesn't get the field and is automatically left alone.
+   can target a subset without touching every VM - e.g. a future set of
+   VMs tagged `["db"]` could be targeted by a `playbooks/db.yml` with
+   `hosts: db`, and any VM added later that doesn't need it just doesn't
+   get the field and is automatically left alone.
 
    ```hcl
    locals {
