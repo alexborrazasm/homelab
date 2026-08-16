@@ -1,0 +1,10 @@
+[project]
+name = "homelab-iac"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "ansible-core>=2.16",
+]
+
+[tool.uv]
+package = false

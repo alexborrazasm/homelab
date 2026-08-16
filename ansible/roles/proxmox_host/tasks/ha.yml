@@ -1,0 +1,11 @@
+---
+# Single node, no cluster - HA/corosync just burn resources for nothing.
+- name: Disable HA services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+  loop:
+    - pve-ha-lrm
+    - pve-ha-crm
+    - corosync

@@ -1,0 +1,5 @@
+---
+# Fallback for hosts with no vm_provision_swap_mb host var (e.g. not
+# provisioned by terraform/inventory.tf). VMs set this explicitly via
+# locals.tf's swap_mb per host, adjustable per VM's actual workload.
+vm_provision_swap_mb: 1024

@@ -1,0 +1,25 @@
+---
+# Pin explicitly so a future Python install on the host can't change what
+# gets auto-discovered between runs. /usr/bin/python3 (not python3.13) so it
+# keeps working if Debian bumps the default minor version.
+ansible_python_interpreter: /usr/bin/python3
+
+# Already has its own red hypervisor-warning prompt (proxmox_host role).
+common_tools_color_prompt: false
+
+# root is the actual login user on the hypervisor (see project notes on
+# why no dedicated non-root user), so key-only root login stays allowed.
+common_tools_ssh_permit_root_login: "prohibit-password"
+
+# Physical NICs
+proxmox_net_nic_lan: "nic0"       # trunk NIC to the Flint2 (renamed via udev/.link, confirmed with `ip -br link`)
+proxmox_net_nic_san: "enp4s0"     # Thunderbolt->USB4 10GbE link to the NAS
+proxmox_net_nic_wifi: "wlo1"      # onboard WiFi, unused, kept manual/down like the rest of the host
+
+# Bridge addressing
+# vmbr0 is the LAN (VLAN 10, native/untagged on the switch trunk port).
+proxmox_net_vmbr0_address: "192.168.9.5/24"
+proxmox_net_vmbr0_gateway: "192.168.9.1"
+
+proxmox_net_vmbrsan_address: "10.10.10.2/24"
+proxmox_net_vmbrsan_mtu: 9000

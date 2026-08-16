@@ -1,0 +1,34 @@
+---
+common_tools_packages:
+  - neovim
+  - htop
+  - fastfetch
+  - bat
+  - tmux
+  - traceroute
+  - tcpdump
+
+# Same tool, different package name per distro - merged into
+# common_tools_packages in tasks/main.yml.
+common_tools_packages_by_os_family:
+  Debian:
+    - bind9-dnsutils # nslookup, dig, host
+    - mtr-tiny
+    - netcat-openbsd
+  RedHat:
+    - bind-utils # nslookup, dig, host
+    - mtr
+    - nmap-ncat
+
+# Fallback for distros without an eza package (e.g. EPEL 10). Static musl
+# binary, generic x86_64 baseline - confirmed working on the v2 template.
+common_tools_eza_version: "0.23.5"
+common_tools_eza_sha256: "e06eebab74b73d6b7d51a796a353824b001bea82df077706382e100815d28904"
+
+# Off on hosts that set their own PS1 (e.g. pve's red hypervisor warning).
+common_tools_color_prompt: true
+
+# "no" for VMs (alex is the actual login user, root shouldn't SSH in at
+# all). pve overrides this to "prohibit-password" since root is the
+# login user there.
+common_tools_ssh_permit_root_login: "no"

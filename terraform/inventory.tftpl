@@ -1,0 +1,23 @@
+---
+all:
+  hosts:
+%{ for name, cfg in vms ~}
+    ${name}:
+      ansible_host: ${cfg.networks[0].ip}
+      ansible_user: alex
+      ansible_python_interpreter: /usr/bin/python3
+      vm_provision_swap_mb: ${cfg.swap_mb}
+%{ endfor ~}
+  children:
+    vms:
+      hosts:
+%{ for name, cfg in vms ~}
+        ${name}: {}
+%{ endfor ~}
+%{ for group, hosts in groups ~}
+    ${group}:
+      hosts:
+%{ for h in hosts ~}
+        ${h}: {}
+%{ endfor ~}
+%{ endfor ~}

@@ -1,0 +1,60 @@
+---
+- name: Check whether k3s is already installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/k3s
+  register: _k3s_bin
+
+- name: Ensure /etc/rancher/k3s exists
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Write the k3s server config
+  # 0644, not 0600 - unlike the agent's config.yaml (which holds the
+  # cluster join token), this one has nothing sensitive in it, and
+  # `kubectl` running as a non-root user tries to read it, warning
+  # ("permission denied") but not failing if it can't.
+  ansible.builtin.copy:
+    dest: /etc/rancher/k3s/config.yaml
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      selinux: true
+      write-kubeconfig-mode: "0644"
+
+- name: Download the k3s install script
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /tmp/k3s-install.sh
+    mode: "0755"
+  when: not _k3s_bin.stat.exists
+
+- name: Install k3s server
+  ansible.builtin.command: /tmp/k3s-install.sh
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+  when: not _k3s_bin.stat.exists
+
+- name: Ensure the k3s service is enabled and running
+  ansible.builtin.systemd:
+    name: k3s
+    enabled: true
+    state: started
+
+- name: Wait for the node token to exist
+  ansible.builtin.wait_for:
+    path: /var/lib/rancher/k3s/server/node-token
+    timeout: 60
+
+- name: Read the node token
+  ansible.builtin.slurp:
+    path: /var/lib/rancher/k3s/server/node-token
+  register: _node_token_raw
+
+- name: Expose the node token for agent nodes to join with
+  ansible.builtin.set_fact:
+    k3s_node_token: "{{ _node_token_raw.content | b64decode | trim }}"

@@ -1,0 +1,34 @@
+---
+# Opt-in only - this task carries the "never" tag (see tasks/main.yml), so it
+# only runs when explicitly requested with --tags upgrade. It never fires on
+# a plain playbook run.
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Upgrade all packages (dist-upgrade)
+  ansible.builtin.apt:
+    upgrade: dist
+    autoremove: true
+
+- name: Check whether a newer kernel is installed than the one running
+  ansible.builtin.shell: |
+    set -o pipefail
+    latest=$(dpkg -l 'proxmox-kernel-*' 'pve-kernel-*' 'linux-image-*' 2>/dev/null | awk '/^ii/ {print $2}' | sed -E 's/^(proxmox-kernel-|pve-kernel-|linux-image-)//; s/-signed$//' | grep -E '^[0-9]' | sort -V | tail -1)
+    running=$(uname -r)
+    if [ "$latest" != "$running" ]; then
+      echo "reboot-needed: running=$running latest=$latest"
+    else
+      echo "up-to-date"
+    fi
+  args:
+    executable: /bin/bash
+  changed_when: false
+  check_mode: false
+  register: _kernel_check
+
+- name: Warn if a reboot is needed to load the new kernel
+  ansible.builtin.debug:
+    msg: "{{ _kernel_check.stdout }} - reboot pve when convenient."
+  when: "'reboot-needed' in _kernel_check.stdout"

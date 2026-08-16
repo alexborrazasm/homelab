@@ -1,0 +1,21 @@
+---
+# AlmaLinux/RHEL only. epel-release auto-detects x86_64_v2 vs v3 and pulls
+# the matching AlmaLinux rebuild (EPEL upstream only builds for v3, would
+# silently crash on our v2 cloud-init template otherwise).
+- name: Enable EPEL (RHEL family only)
+  when: ansible_facts['os_family'] == "RedHat"
+  block:
+    # /usr/bin/crb itself is shipped BY epel-release, so this must come
+    # first. install_weak_deps: false - the altarch (x86_64_v2) EPEL
+    # rebuild's weak deps (selinux-policy-*-extra) can pin an exact
+    # selinux-policy-targeted build that's briefly out of sync with
+    # BaseOS's latest point release; skip them, they're optional.
+    - name: Install epel-release
+      ansible.builtin.dnf:
+        name: epel-release
+        state: present
+        install_weak_deps: false
+
+    - name: Enable the CRB repository (required by many EPEL packages)
+      ansible.builtin.command: /usr/bin/crb enable
+      changed_when: false

@@ -1,0 +1,16 @@
+---
+# Key-based auth already works everywhere (SSH keys via authorized_keys /
+# cloud-init), but don't rely on whatever the distro/image defaults to -
+# declare it explicitly. PermitRootLogin differs by host (root is the
+# actual login user on pve, not on VMs) - see common_tools_ssh_permit_root_login.
+- name: Enforce key-only SSH auth
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/99-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin {{ common_tools_ssh_permit_root_login }}
+  notify: Reload sshd

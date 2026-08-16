@@ -1,0 +1,57 @@
+{{ ansible_managed | comment }}
+# Source of truth: roles/proxmox_host/templates/interfaces.j2
+
+auto lo
+iface lo inet loopback
+
+# --- Physical NICs ---
+
+iface {{ proxmox_net_nic_lan }} inet manual
+
+auto {{ proxmox_net_nic_lan }}.20
+iface {{ proxmox_net_nic_lan }}.20 inet manual
+
+auto {{ proxmox_net_nic_lan }}.30
+iface {{ proxmox_net_nic_lan }}.30 inet manual
+
+iface {{ proxmox_net_nic_san }} inet manual
+    mtu {{ proxmox_net_vmbrsan_mtu }}
+
+iface {{ proxmox_net_nic_wifi }} inet manual
+
+# --- Bridges ---
+
+# LAN (VLAN 10, native/untagged on the switch trunk port).
+auto vmbr0
+iface vmbr0 inet static
+    address {{ proxmox_net_vmbr0_address }}
+    gateway {{ proxmox_net_vmbr0_gateway }}
+    bridge-ports {{ proxmox_net_nic_lan }}
+    bridge-stp off
+    bridge-fd 0
+
+# IOT (VLAN 20)
+auto vmbr20
+iface vmbr20 inet manual
+    bridge-ports {{ proxmox_net_nic_lan }}.20
+    bridge-stp off
+    bridge-fd 0
+
+# DMZ (VLAN 30)
+auto vmbr30
+iface vmbr30 inet manual
+    bridge-ports {{ proxmox_net_nic_lan }}.30
+    bridge-stp off
+    bridge-fd 0
+
+# Dedicated link to the NAS (NOT a VLAN). The host and any VM that needs
+# fast NFS access to the NAS attach here directly.
+auto vmbrSAN
+iface vmbrSAN inet static
+    address {{ proxmox_net_vmbrsan_address }}
+    bridge-ports {{ proxmox_net_nic_san }}
+    bridge-stp off
+    bridge-fd 0
+    mtu {{ proxmox_net_vmbrsan_mtu }}
+
+source /etc/network/interfaces.d/*

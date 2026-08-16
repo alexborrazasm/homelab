@@ -1,0 +1,25 @@
+---
+- name: Install fail2ban
+  ansible.builtin.package:
+    name: fail2ban
+    state: present
+
+- name: Enable the sshd jail
+  # Upstream jail.conf ships the [sshd] jail definition but disabled by
+  # default - a drop-in in jail.d/ is the supported way to turn it on
+  # without editing the packaged jail.conf directly.
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.d/sshd.local
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [sshd]
+      enabled = true
+  notify: Restart fail2ban
+
+- name: Enable and start fail2ban
+  ansible.builtin.systemd:
+    name: fail2ban
+    enabled: true
+    state: started

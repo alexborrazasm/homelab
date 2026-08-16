@@ -1,0 +1,53 @@
+---
+# Proxmox VE 9 (Debian 13 "trixie") uses the deb822 .sources format.
+
+- name: Disable the enterprise repo (deb822)
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/pve-enterprise.sources
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      Types: deb
+      URIs: https://enterprise.proxmox.com/debian/pve
+      Suites: trixie
+      Components: pve-enterprise
+      Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+      Enabled: no
+  notify: Update apt cache
+
+- name: Enable the no-subscription repo (deb822)
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/proxmox.sources
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      Types: deb
+      URIs: http://download.proxmox.com/debian/pve
+      Suites: trixie
+      Components: pve-no-subscription
+      Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+  notify: Update apt cache
+
+# The ISO installer also enables a ceph-enterprise repo by default. We don't
+# run Ceph on a single node, and it 401s on apt update without a
+# subscription. Its exact URI (ceph-squid vs ceph-tentacle) depends on the
+# PVE minor version at install time, so find whichever file has it instead
+# of guessing, and just flip it off.
+- name: Locate the ceph enterprise repo file
+  ansible.builtin.shell:
+    cmd: grep -l 'enterprise.proxmox.com.*ceph' /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+    executable: /bin/bash
+  changed_when: false
+  check_mode: false
+  register: _ceph_enterprise_file
+
+- name: Disable the ceph enterprise repo
+  ansible.builtin.lineinfile:
+    path: "{{ _ceph_enterprise_file.stdout_lines[0] }}"
+    regexp: "^Enabled:"
+    line: "Enabled: no"
+    insertafter: EOF
+  when: _ceph_enterprise_file.stdout_lines | length > 0
+  notify: Update apt cache

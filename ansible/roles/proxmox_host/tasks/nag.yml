@@ -1,0 +1,60 @@
+---
+# The subscription nag gets reintroduced every time proxmox-widget-toolkit
+# is updated, so the patch is wired into apt itself (Post-Invoke hook)
+# instead of just being applied once.
+
+- name: Deploy the subscription-nag removal script
+  ansible.builtin.copy:
+    dest: /usr/local/bin/pve-remove-nag.sh
+    owner: root
+    group: root
+    mode: "0755"
+    content: |
+      #!/bin/sh
+      WEB_JS=/usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
+      if [ -s "$WEB_JS" ] && ! grep -q NoMoreNagging "$WEB_JS"; then
+          echo "patched web UI nag"
+          sed -i -e "/data\.status/ s/!//" -e "/data\.status/ s/active/NoMoreNagging/" "$WEB_JS"
+      fi
+
+      MOBILE_TPL=/usr/share/pve-yew-mobile-gui/index.html.tpl
+      MARKER="<!-- MANAGED BLOCK FOR MOBILE NAG -->"
+      if [ -f "$MOBILE_TPL" ] && ! grep -q "$MARKER" "$MOBILE_TPL"; then
+          echo "patched mobile UI nag"
+          {
+            echo "$MARKER"
+            echo "<script>"
+            echo "  function removeSubscriptionElements() {"
+            echo "    const dialogs = document.querySelectorAll('dialog.pwt-outer-dialog');"
+            echo "    dialogs.forEach(dialog => {"
+            echo "      const text = (dialog.textContent || '').toLowerCase();"
+            echo "      if (text.includes('subscription')) { dialog.remove(); }"
+            echo "    });"
+            echo "    const cards = document.querySelectorAll('.pwt-card.pwt-p-2.pwt-d-flex.pwt-interactive.pwt-justify-content-center');"
+            echo "    cards.forEach(card => {"
+            echo "      const text = (card.textContent || '').toLowerCase();"
+            echo "      if (!card.querySelector('button') && text.includes('subscription')) { card.remove(); }"
+            echo "    });"
+            echo "  }"
+            echo "  const observer = new MutationObserver(removeSubscriptionElements);"
+            echo "  observer.observe(document.body, { childList: true, subtree: true });"
+            echo "  removeSubscriptionElements();"
+            echo "  setInterval(removeSubscriptionElements, 300);"
+            echo "  setTimeout(() => {observer.disconnect();}, 10000);"
+            echo "</script>"
+          } >> "$MOBILE_TPL"
+      fi
+
+- name: Install the apt hook that re-applies the nag patch after updates
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/no-nag-script
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      DPkg::Post-Invoke { "/usr/local/bin/pve-remove-nag.sh"; };
+
+- name: Apply the subscription-nag patch now
+  ansible.builtin.command: /usr/local/bin/pve-remove-nag.sh
+  register: _nag_apply
+  changed_when: "'patched' in _nag_apply.stdout"

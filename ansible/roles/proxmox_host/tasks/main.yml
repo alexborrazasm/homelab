@@ -1,0 +1,38 @@
+---
+- name: Configure networking (/etc/network/interfaces)
+  ansible.builtin.import_tasks: network.yml
+  tags: [network]
+
+- name: Manage apt repositories
+  ansible.builtin.import_tasks: repos.yml
+  tags: [repos]
+  when: proxmox_repo_manage | bool
+
+- name: Remove the GUI subscription nag
+  ansible.builtin.import_tasks: nag.yml
+  tags: [nag]
+  when: proxmox_nag_remove | bool
+
+- name: Disable HA services
+  ansible.builtin.import_tasks: ha.yml
+  tags: [ha]
+  when: proxmox_ha_disable | bool
+
+- name: Set up the OpenTofu API user/token
+  ansible.builtin.import_tasks: terraform_api.yml
+  tags: [terraform-api]
+  when: proxmox_terraform_api | bool
+
+- name: Build the AlmaLinux cloud-init template
+  ansible.builtin.import_tasks: vm_template.yml
+  tags: [vm-template]
+  when: proxmox_vm_template_create | bool
+
+- name: Upgrade packages (opt-in, run with --tags upgrade)
+  ansible.builtin.import_tasks: upgrade.yml
+  tags: [upgrade, never]
+
+- name: Warn that this is the hypervisor via a red terminal
+  ansible.builtin.import_tasks: shell_warning.yml
+  tags: [shell-warning]
+  when: proxmox_shell_warning | bool

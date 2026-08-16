@@ -1,0 +1,36 @@
+---
+# Proxmox can grow a cloned VM's disk (terraform/locals.tf disk_gb), but the
+# guest's partition/filesystem doesn't follow automatically after the first
+# boot - cloud-init's growpart only runs once, at first boot. Re-run it here
+# so bumping disk_gb later actually takes effect.
+#
+# Gated on the root device being a plain partition (e.g. /dev/sda4) as a
+# safety check (skip anything unexpected, e.g. an LVM root) - not to
+# special-case any host, this role only runs on VMs at all (playbooks/vms.yml).
+- name: Determine the root filesystem's device and type
+  ansible.builtin.set_fact:
+    _root_mount: "{{ ansible_facts['mounts'] | selectattr('mount', 'equalto', '/') | first }}"
+
+- name: Grow the root partition and filesystem to fill the disk
+  when: _root_mount.device is match('^/dev/[a-z]+[0-9]+$')
+  block:
+    - name: Compute the underlying disk and partition number
+      ansible.builtin.set_fact:
+        _root_disk: "{{ _root_mount.device | regex_replace('[0-9]+$', '') }}"
+        _root_part: "{{ _root_mount.device | regex_replace('^.*?([0-9]+)$', '\\1') }}"
+
+    - name: Grow the partition to fill the disk
+      ansible.builtin.command: "growpart {{ _root_disk }} {{ _root_part }}"
+      register: _growpart
+      changed_when: "'CHANGED' in _growpart.stdout"
+      failed_when: _growpart.rc != 0 and 'NOCHANGE' not in _growpart.stdout
+
+    - name: Grow the XFS filesystem
+      ansible.builtin.command: xfs_growfs /
+      when: _root_mount.fstype == "xfs"
+      changed_when: _growpart is changed
+
+    - name: Grow the ext4 filesystem
+      ansible.builtin.command: "resize2fs {{ _root_mount.device }}"
+      when: _root_mount.fstype == "ext4"
+      changed_when: _growpart is changed

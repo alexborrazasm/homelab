@@ -1,0 +1,10 @@
+---
+# First-boot lifecycle needs for a cloud-init VM cloned from a template.
+# Not shared with pve (see playbooks/proxmox-host.yml vs playbooks/vms.yml)
+# - the hypervisor's disk/swap are set up once by hand, not templated and
+# resized per-VM the way these are.
+- name: Grow the root filesystem to fill the disk
+  ansible.builtin.import_tasks: grow_root.yml
+
+- name: Set up swap
+  ansible.builtin.import_tasks: swap.yml

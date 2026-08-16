@@ -1,0 +1,11 @@
+---
+- name: Warn that this is the hypervisor via a red terminal
+  ansible.builtin.blockinfile:
+    path: /root/.bashrc
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - danger prompt (pve is the hypervisor)"
+    block: |
+      # pve is the Proxmox hypervisor - mistakes here take everything down.
+      # Only the prompt is red; typed input and command output stay normal.
+      if [ -n "$PS1" ]; then
+          PS1='\[\033[1;31m\]${debian_chroot:+($debian_chroot)}\u@\h:\w\$\[\033[0m\] '
+      fi

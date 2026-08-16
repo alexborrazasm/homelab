@@ -1,0 +1,20 @@
+---
+- name: Deploy /etc/network/interfaces
+  ansible.builtin.template:
+    src: interfaces.j2
+    dest: /etc/network/interfaces
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload networking (ifreload)
+  register: _interfaces_file
+
+- name: Warn that the network reload is disabled by default
+  ansible.builtin.debug:
+    msg: >-
+      /etc/network/interfaces was changed but NOT reloaded
+      (proxmox_net_apply_reload=false). Review the diff, then either run
+      `ifreload -a` by hand or rerun with -e proxmox_net_apply_reload=true.
+  when:
+    - _interfaces_file is changed
+    - not (proxmox_net_apply_reload | bool)

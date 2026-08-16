@@ -1,0 +1,58 @@
+---
+# Opt-in only - included with tags: [upgrade, never] from the playbooks, so
+# this never fires on a plain run. OS-family aware so the same role covers
+# pve (Debian/apt) and the AlmaLinux service VMs (RedHat/dnf).
+
+- name: Debian - update cache and dist-upgrade
+  when: ansible_facts['os_family'] == "Debian"
+  block:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Upgrade all packages (dist-upgrade)
+      ansible.builtin.apt:
+        upgrade: dist
+        autoremove: true
+
+    - name: Check whether a newer kernel is installed than the one running
+      ansible.builtin.shell: |
+        set -o pipefail
+        latest=$(dpkg -l 'proxmox-kernel-*' 'pve-kernel-*' 'linux-image-*' 2>/dev/null | awk '/^ii/ {print $2}' | sed -E 's/^(proxmox-kernel-|pve-kernel-|linux-image-)//; s/-signed$//' | grep -E '^[0-9]' | sort -V | tail -1)
+        running=$(uname -r)
+        if [ "$latest" != "$running" ]; then
+          echo "reboot-needed: running=$running latest=$latest"
+        else
+          echo "up-to-date"
+        fi
+      args:
+        executable: /bin/bash
+      changed_when: false
+      check_mode: false
+      register: _debian_kernel_check
+
+    - name: Warn if a reboot is needed
+      ansible.builtin.debug:
+        msg: "{{ _debian_kernel_check.stdout }} - reboot {{ inventory_hostname }} when convenient."
+      when: "'reboot-needed' in _debian_kernel_check.stdout"
+
+- name: RedHat - upgrade all packages
+  when: ansible_facts['os_family'] == "RedHat"
+  block:
+    - name: Upgrade all packages
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+        update_cache: true
+
+    - name: Check whether a reboot is needed
+      ansible.builtin.command: dnf needs-restarting -r
+      register: _dnf_needs_restart
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Warn if a reboot is needed
+      ansible.builtin.debug:
+        msg: "Reboot needed on {{ inventory_hostname }}: {{ _dnf_needs_restart.stdout }}"
+      when: _dnf_needs_restart.rc == 1

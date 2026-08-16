@@ -1,0 +1,8 @@
+---
+- name: Configure the pve Proxmox host
+  hosts: pve
+  become: true
+  gather_facts: true
+  roles:
+    - common_tools
+    - proxmox_host

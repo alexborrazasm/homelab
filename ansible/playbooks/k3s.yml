@@ -1,0 +1,20 @@
+---
+- name: Install k3s server
+  hosts: k3s_server
+  become: true
+  gather_facts: true
+  vars:
+    k3s_node_role: server
+  roles:
+    - k3s
+
+- name: Install k3s agents
+  hosts: k3s_agent
+  become: true
+  gather_facts: true
+  vars:
+    k3s_node_role: agent
+    k3s_server_url: "{{ hostvars[groups['k3s_server'][0]]['ansible_host'] }}"
+    k3s_token: "{{ hostvars[groups['k3s_server'][0]]['k3s_node_token'] }}"
+  roles:
+    - k3s

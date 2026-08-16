@@ -1,0 +1,23 @@
+---
+# Let's Encrypt's production DNS-01 rate limit is 5 duplicate
+# certs/week - use this issuer while iterating on an Ingress/Certificate,
+# switch to cluster-issuer.yaml's issuer only once staging issues cleanly.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-cloudflare-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: alexborrazasm@gmail.com
+    privateKeySecretRef:
+      name: letsencrypt-cloudflare-staging-key
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token-secret
+              key: api-token
+        selector:
+          dnsZones:
+            - "alexborrazasm.dev"

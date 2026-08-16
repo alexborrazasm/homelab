@@ -1,0 +1,11 @@
+---
+- name: Common prerequisites (swap, firewalld)
+  ansible.builtin.import_tasks: prereqs.yml
+
+- name: Install k3s server
+  when: k3s_node_role == "server"
+  ansible.builtin.import_tasks: server.yml
+
+- name: Install k3s agent
+  when: k3s_node_role == "agent"
+  ansible.builtin.import_tasks: agent.yml

@@ -1,0 +1,39 @@
+---
+# AlmaLinux cloud images ship with zero swap. Gated on "no swap already
+# active" as a plain idempotency check (not to special-case any host - this
+# role only runs on VMs at all, see playbooks/vms.yml).
+- name: Check for existing active swap
+  ansible.builtin.command: swapon --show=NAME --noheadings
+  register: _swap_check
+  changed_when: false
+  check_mode: false
+
+- name: Create and enable a swap file
+  # swap_mb: 0 means the VM shouldn't have swap at all (e.g. k3s nodes -
+  # kubelet hard-fails on boot if it detects active swap).
+  when:
+    - _swap_check.stdout | trim == ""
+    - vm_provision_swap_mb | int > 0
+  block:
+    - name: Allocate the swap file
+      ansible.builtin.command: "fallocate -l {{ vm_provision_swap_mb }}M /swapfile"
+      args:
+        creates: /swapfile
+
+    - name: Set swap file permissions
+      ansible.builtin.file:
+        path: /swapfile
+        mode: "0600"
+        owner: root
+        group: root
+
+    - name: Format the swap file
+      ansible.builtin.command: mkswap /swapfile
+
+    - name: Enable the swap file
+      ansible.builtin.command: swapon /swapfile
+
+    - name: Persist the swap file in fstab
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        line: "/swapfile none swap sw 0 0"

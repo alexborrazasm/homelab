@@ -1,0 +1,59 @@
+---
+# Cloud-init template for OpenTofu to clone VMs from. Pinned to a specific
+# versioned image (not "-latest") with a checksum, so a re-run doesn't
+# silently pull a different image than what's already templated.
+
+- name: Ensure the cloud image download directory exists
+  ansible.builtin.file:
+    path: /var/lib/vz/template/cloudimg
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Download the AlmaLinux GenericCloud image
+  ansible.builtin.get_url:
+    url: "{{ proxmox_template_image_url }}"
+    dest: "/var/lib/vz/template/cloudimg/{{ proxmox_template_image_file }}"
+    checksum: "sha256:{{ proxmox_template_image_sha256 }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Check whether the template VM already exists
+  ansible.builtin.command: "qm config {{ proxmox_template_vmid }}"
+  register: _template_vm
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Create the template VM shell
+  ansible.builtin.command: >
+    qm create {{ proxmox_template_vmid }}
+    --name {{ proxmox_template_name }}
+    --memory 2048 --cores 2 --cpu host
+    --net0 virtio,bridge=vmbr0
+    --scsihw virtio-scsi-pci
+    --ostype l26
+    --agent enabled=1
+    --serial0 socket --vga serial0
+  when: _template_vm.rc != 0
+
+- name: Import the cloud image as the VM's boot disk
+  ansible.builtin.command: >
+    qm importdisk {{ proxmox_template_vmid }}
+    /var/lib/vz/template/cloudimg/{{ proxmox_template_image_file }}
+    local-lvm
+  when: _template_vm.rc != 0
+
+- name: Attach the imported disk, boot order and cloud-init drive
+  ansible.builtin.command: >
+    qm set {{ proxmox_template_vmid }}
+    --scsi0 local-lvm:vm-{{ proxmox_template_vmid }}-disk-0
+    --boot order=scsi0
+    --ide2 local-lvm:cloudinit
+  when: _template_vm.rc != 0
+
+- name: Convert the VM into a template
+  ansible.builtin.command: "qm template {{ proxmox_template_vmid }}"
+  when: _template_vm.rc != 0

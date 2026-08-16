@@ -1,0 +1,80 @@
+---
+# Dedicated PVE user + API token for OpenTofu, so it doesn't provision VMs
+# as root@pam. Privilege list is from a working OpenTofu setup already
+# tested against this same PVE 9.1 install.
+- name: Check existing PVE roles
+  ansible.builtin.command: pveum role list --output-format json
+  changed_when: false
+  check_mode: false
+  register: _pve_roles
+
+- name: Create the Terraform role
+  ansible.builtin.command: >
+    pveum role add TerraformProv -privs
+    "Datastore.AllocateSpace Datastore.Audit Pool.Allocate Sys.Audit Sys.Console
+    Sys.Modify VM.Allocate VM.Audit VM.Clone VM.Config.CDROM VM.Config.Cloudinit
+    VM.Config.CPU VM.Config.Disk VM.Config.HWType VM.Config.Memory
+    VM.Config.Network VM.Config.Options VM.Migrate VM.PowerMgmt
+    VM.GuestAgent.Audit SDN.Use"
+  when: "'TerraformProv' not in (_pve_roles.stdout | from_json | map(attribute='roleid') | list)"
+
+- name: Keep the Terraform role privileges in sync
+  # Covers the case where the role already existed from a previous run and
+  # the privilege list above has since changed - "role add" above only fires
+  # once, this keeps it current on every run. Safe/idempotent either way.
+  # VM.GuestAgent.Audit (read-only: query IPs/info) deliberately included so
+  # the provider can wait for the guest IP; VM.GuestAgent.Unrestricted
+  # (arbitrary exec inside guests) deliberately left out.
+  ansible.builtin.command: >
+    pveum role modify TerraformProv -privs
+    "Datastore.AllocateSpace Datastore.Audit Pool.Allocate Sys.Audit Sys.Console
+    Sys.Modify VM.Allocate VM.Audit VM.Clone VM.Config.CDROM VM.Config.Cloudinit
+    VM.Config.CPU VM.Config.Disk VM.Config.HWType VM.Config.Memory
+    VM.Config.Network VM.Config.Options VM.Migrate VM.PowerMgmt
+    VM.GuestAgent.Audit SDN.Use"
+  changed_when: false
+
+- name: Check existing PVE users
+  ansible.builtin.command: pveum user list --output-format json
+  changed_when: false
+  check_mode: false
+  register: _pve_users
+
+- name: Create the Terraform service user
+  ansible.builtin.command: pveum user add terraform-prov@pve
+  when: "'terraform-prov@pve' not in (_pve_users.stdout | from_json | map(attribute='userid') | list)"
+
+- name: Check existing ACLs on /
+  ansible.builtin.command: pveum acl list --output-format json
+  changed_when: false
+  check_mode: false
+  register: _pve_acls
+
+- name: Grant the Terraform role to the service user on /
+  ansible.builtin.command: pveum aclmod / -user terraform-prov@pve -role TerraformProv
+  when: >
+    _pve_acls.stdout | from_json
+    | selectattr('ugid', 'defined')
+    | selectattr('ugid', 'equalto', 'terraform-prov@pve')
+    | selectattr('roleid', 'equalto', 'TerraformProv')
+    | list | length == 0
+
+- name: Check existing API tokens for the Terraform user
+  # In --check mode the user-creation task above only simulates, so the user
+  # may not exist yet - that's not a real failure, just means no tokens.
+  ansible.builtin.command: pveum user token list terraform-prov@pve --output-format json
+  changed_when: false
+  check_mode: false
+  register: _pve_tokens
+  failed_when: _pve_tokens.rc != 0 and 'no such user' not in _pve_tokens.stderr
+
+- name: Create the Terraform API token
+  ansible.builtin.command: pveum user token add terraform-prov@pve terraform-token --privsep 0 --output-format json
+  register: _pve_token_created
+  changed_when: _pve_token_created.rc == 0
+  when: "'terraform-token' not in (_pve_tokens.stdout | default('[]', true) | from_json | map(attribute='tokenid') | list)"
+
+- name: Show the new API token - save it now, Proxmox will not show it again
+  ansible.builtin.debug:
+    msg: "{{ _pve_token_created.stdout }}"
+  when: _pve_token_created is changed

@@ -1,0 +1,10 @@
+---
+- name: Configure service VMs
+  hosts: vms
+  become: true
+  gather_facts: true
+  roles:
+    - vm_provision
+    - common_tools
+    - role: os_upgrade
+      tags: [upgrade, never]

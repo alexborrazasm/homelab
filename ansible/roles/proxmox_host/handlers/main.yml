@@ -1,0 +1,10 @@
+---
+- name: Reload networking (ifreload)
+  ansible.builtin.command: ifreload -a
+  when: proxmox_net_apply_reload | bool
+  listen: "Reload networking (ifreload)"
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+  listen: "Update apt cache"
