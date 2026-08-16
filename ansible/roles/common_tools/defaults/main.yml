@@ -8,6 +8,7 @@ common_tools_packages:
   - traceroute
   - tcpdump
   - net-tools # netstat, ifconfig, route, arp - same package name on apt/dnf
+  - tree
 
 # Same tool, different package name per distro - merged into
 # common_tools_packages in tasks/main.yml.
