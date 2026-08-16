@@ -1,4 +1,4 @@
-# ansible/
+# ansible
 
 Host and VM configuration.
 

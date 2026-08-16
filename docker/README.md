@@ -1,4 +1,4 @@
-# docker/
+# docker
 
 Service deployment - Docker + Komodo.
 

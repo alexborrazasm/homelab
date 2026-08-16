@@ -1,4 +1,4 @@
-# terraform/
+# terraform
 
 VM lifecycle - create, resize, destroy.
 
