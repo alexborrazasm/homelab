@@ -41,7 +41,7 @@ locals {
     k3s-server = {
       vm_id              = 310
       memory_mb          = 4096
-      memory_floating_mb = 2048
+      memory_floating_mb = 0
       swap_mb            = 0
       disk_gb            = 20
       tags               = ["k3s", "k3s-server", "dmz"]
@@ -54,7 +54,7 @@ locals {
     k3s-agent1 = {
       vm_id              = 311
       memory_mb          = 3072
-      memory_floating_mb = 1536
+      memory_floating_mb = 0
       swap_mb            = 0
       disk_gb            = 20
       tags               = ["k3s", "k3s-agent", "dmz"]
@@ -67,7 +67,7 @@ locals {
     k3s-agent2 = {
       vm_id              = 312
       memory_mb          = 3072
-      memory_floating_mb = 1536
+      memory_floating_mb = 0
       swap_mb            = 0
       disk_gb            = 20
       tags               = ["k3s", "k3s-agent", "dmz"]
