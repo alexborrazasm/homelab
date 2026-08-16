@@ -15,7 +15,7 @@ locals {
   #   disk_gb            = 10                      # boot disk size, grow-only - can't shrink below the template's current size
   #   cloudinit_upgrade  = true                     # optional, default true - full package upgrade via cloud-init on first boot
   #   tags               = ["service", "homelab"]   # optional, default [] - order doesn't matter, sorted in modules/vm (Proxmox sorts server-side anyway)
-  #   dns_domain         = "lan.pri.alexborrazasm.dev" # optional, default null - DNS search domain. DNS server is always networks[0].gateway, not a separate field
+  #   dns_domain         = "home.arpa" # optional, default null - DNS search domain. DNS server is always networks[0].gateway, not a separate field
   #   ansible_groups     = ["k3s", "k3s_server"]   # optional, default [] - extra Ansible groups (beyond "vms"), so playbooks can target a subset (e.g. only k3s nodes) without touching every VM
   #   networks = [
   #     # bridge: vmbr0 (LAN), vmbr20 (IOT), vmbr30 (DMZ), vmbrSAN (direct NAS/NFS access)
@@ -31,7 +31,7 @@ locals {
       swap_mb            = 1024
       disk_gb            = 20
       tags               = ["test", "lan"]
-      dns_domain         = "lan.pri.alexborrazasm.dev"
+      dns_domain         = "home.arpa"
       # no ansible_groups on purpose - proves a regular VM stays out of
       # the k3s group automatically, without needing to opt out of anything.
       networks = [
@@ -45,7 +45,7 @@ locals {
       swap_mb            = 0
       disk_gb            = 20
       tags               = ["k3s", "k3s-server", "dmz"]
-      dns_domain         = "dmz.pri.alexborrazasm.dev"
+      dns_domain         = "home.arpa"
       ansible_groups     = ["k3s", "k3s_server"]
       networks = [
         { bridge = "vmbr30", ip = "10.0.0.10", gateway = "10.0.0.1" },
@@ -58,7 +58,7 @@ locals {
       swap_mb            = 0
       disk_gb            = 20
       tags               = ["k3s", "k3s-agent", "dmz"]
-      dns_domain         = "dmz.pri.alexborrazasm.dev"
+      dns_domain         = "home.arpa"
       ansible_groups     = ["k3s", "k3s_agent"]
       networks = [
         { bridge = "vmbr30", ip = "10.0.0.11", gateway = "10.0.0.1" },
@@ -71,7 +71,7 @@ locals {
       swap_mb            = 0
       disk_gb            = 20
       tags               = ["k3s", "k3s-agent", "dmz"]
-      dns_domain         = "dmz.pri.alexborrazasm.dev"
+      dns_domain         = "home.arpa"
       ansible_groups     = ["k3s", "k3s_agent"]
       networks = [
         { bridge = "vmbr30", ip = "10.0.0.12", gateway = "10.0.0.1" },
