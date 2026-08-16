@@ -1,0 +1,10 @@
+{
+	email alexborrazasm@gmail.com
+}
+
+*.alexborrazasm.dev {
+	tls {
+		dns cloudflare {env.CF_API_TOKEN}
+	}
+	respond "ok"
+}

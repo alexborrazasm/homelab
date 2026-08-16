@@ -1,0 +1,19 @@
+services:
+  caddy:
+    container_name: caddy
+    build:
+      dockerfile: Dockerfile
+    user: "900:900"
+    cap_drop: [all]
+    cap_add: [net_bind_service] # needed to bind 80/443 as a non-root user
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - TZ=Europe/Madrid
+      - CF_API_TOKEN=${CF_API_TOKEN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data:/data
+      - ./config:/config
+    restart: unless-stopped
