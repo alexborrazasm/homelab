@@ -13,3 +13,4 @@ terraform/.env
 ansible/inventory/vms.yml
 
 ansible/roles/komodo/files/.env
+*.tfstate.lock.info

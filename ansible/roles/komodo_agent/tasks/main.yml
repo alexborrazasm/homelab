@@ -7,9 +7,24 @@
     group: docker
     mode: "0755"
 
-- name: Ensure the keys data directory exists
+- name: Ensure the keys data directory (and its contents) are owned by docker
+  # recurse: true - Periphery generated its key files here as root before
+  # this role pinned it to 900:900. Without recursing, only the directory
+  # itself gets fixed, not files already inside it.
   ansible.builtin.file:
     path: /srv/docker/komodo-agent/data/keys
+    state: directory
+    owner: docker
+    group: docker
+    mode: "0755"
+    recurse: true
+
+- name: Ensure /srv/docker/komodo-repos exists (Periphery's root_directory)
+  # Periphery runs as 900:900 (not root) - it needs to already own this
+  # before it starts, or git clones under it fail with "dubious
+  # ownership" (owner mismatch) instead of just working.
+  ansible.builtin.file:
+    path: /srv/docker/komodo-repos
     state: directory
     owner: docker
     group: docker

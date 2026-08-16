@@ -6,6 +6,7 @@ services:
       komodo.skip:
     command: --quiet --wiredTigerCacheSizeGB 0.25
     restart: unless-stopped
+    user: "900:900"
     volumes:
       - ./data/mongo-data:/data/db
       - ./data/mongo-config:/data/configdb
@@ -34,6 +35,7 @@ services:
     image: ghcr.io/moghtech/komodo-periphery:${COMPOSE_KOMODO_IMAGE_TAG:-2}
     init: true
     restart: unless-stopped
+    user: "900:900"
     depends_on:
       - core
     env_file: ./.env
@@ -41,4 +43,4 @@ services:
       - ./data/keys:/config/keys
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc:/proc
-      - ${PERIPHERY_ROOT_DIRECTORY:-/etc/komodo}:${PERIPHERY_ROOT_DIRECTORY:-/etc/komodo}
+      - /srv/docker/komodo-repos:/etc/komodo
