@@ -96,3 +96,9 @@
     mode: "0644"
     content: |
       alias sd='sudo su - docker'
+
+- name: "Add {{ ansible_user }} to the docker group"
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: true
