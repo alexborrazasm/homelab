@@ -25,13 +25,21 @@ chmod +x kubectl
 sudo mv kubectl /usr/local/bin/
 ```
 
+Optional but recommended - [k9s](https://k9scli.io/), a terminal UI for
+browsing the cluster (pods per node, logs, exec) instead of one-off
+`kubectl` commands:
+
+```bash
+sudo dnf install k9s
+```
+
 ## Access
 
-kubectl runs from your machine, not by SSHing into `k3s-server` - same
-pattern as `terraform/tofu.sh` running against the Proxmox API remotely
-instead of from `pve` itself. Use `./kubectl.sh` instead of a bare
-`kubectl` - it points at `kubernetes/kubeconfig` for you, no manual
-`export KUBECONFIG` needed.
+kubectl (and k9s) run from your machine, not by SSHing into `k3s-server`
+- same pattern as `terraform/tofu.sh` running against the Proxmox API
+remotely instead of from `pve` itself. Use `./kubectl.sh` / `./k9s.sh`
+instead of the bare commands - both point at `kubernetes/kubeconfig` for
+you, no manual `export KUBECONFIG` needed.
 
 ```bash
 cd kubernetes
@@ -39,6 +47,7 @@ cp .env.example .env    # fill in K3S_SERVER_IP (and CLOUDFLARE_API_TOKEN, neede
 
 ./fetch-kubeconfig.sh        # scp's k3s.yaml off k3s-server, patches 127.0.0.1 -> its real IP
 ./kubectl.sh get nodes
+./k9s.sh                     # press 0 to see pods across all namespaces (defaults to just "default", which is empty)
 ```
 
 Re-run `fetch-kubeconfig.sh` if the server is ever rebuilt - the
