@@ -1,6 +1,6 @@
 services:
   caddy:
-    container_name: caddy
+    container_name: caddy-public
     build:
       dockerfile: Dockerfile
     user: "900:900"
