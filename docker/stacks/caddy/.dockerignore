@@ -1,5 +1,0 @@
-Caddyfile
-data/
-config/
-compose.yaml
-.env
