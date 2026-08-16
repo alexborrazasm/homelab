@@ -3,6 +3,7 @@ services:
     container_name: cloudflare-ddns
     image: favonia/cloudflare-ddns:1.17.0
     restart: unless-stopped
+    user: "900:900" # avoid colliding with the host's alex (uid 1000) - consistent with docker:docker elsewhere
     read_only: true
     cap_drop: [all]
     security_opt: [no-new-privileges:true]
