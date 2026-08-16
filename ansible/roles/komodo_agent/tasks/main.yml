@@ -19,12 +19,12 @@
     mode: "0755"
     recurse: true
 
-- name: Ensure /srv/docker/komodo-repos exists (Periphery's root_directory)
+- name: Ensure /srv/docker/komodo exists (Periphery's root_directory)
   # Periphery runs as 900:900 (not root) - it needs to already own this
   # before it starts, or git clones under it fail with "dubious
   # ownership" (owner mismatch) instead of just working.
   ansible.builtin.file:
-    path: /srv/docker/komodo-repos
+    path: /srv/docker/komodo
     state: directory
     owner: docker
     group: docker

@@ -1,7 +1,7 @@
 ---
-- name: Ensure /srv/docker/komodo exists
+- name: Ensure /srv/docker/komodo-stack exists
   ansible.builtin.file:
-    path: /srv/docker/komodo
+    path: /srv/docker/komodo-stack
     state: directory
     owner: docker
     group: docker
@@ -12,7 +12,7 @@
   # directories are easy to later re-point at an NFS mount, unlike named
   # volumes living under Docker's own /var/lib/docker/volumes.
   ansible.builtin.file:
-    path: "/srv/docker/komodo/data/{{ item }}"
+    path: "/srv/docker/komodo-stack/data/{{ item }}"
     state: directory
     owner: docker
     group: docker
@@ -25,7 +25,7 @@
   # before this role pinned it to 900:900. Without recursing, only the
   # directories themselves get fixed, not the files already inside.
   ansible.builtin.file:
-    path: "/srv/docker/komodo/data/{{ item }}"
+    path: "/srv/docker/komodo-stack/data/{{ item }}"
     state: directory
     owner: docker
     group: docker
@@ -40,19 +40,19 @@
   # this role pinned them to 900:900. Without recursing, only the
   # directory itself gets fixed, not files already inside it.
   ansible.builtin.file:
-    path: /srv/docker/komodo/data/keys
+    path: /srv/docker/komodo-stack/data/keys
     state: directory
     owner: docker
     group: docker
     mode: "0755"
     recurse: true
 
-- name: Ensure /srv/docker/komodo-repos exists (Periphery's root_directory)
+- name: Ensure /srv/docker/komodo exists (Periphery's root_directory)
   # Periphery runs as 900:900 (not root) - it needs to already own this
   # before it starts, or git clones under it fail with "dubious
   # ownership" (owner mismatch) instead of just working.
   ansible.builtin.file:
-    path: /srv/docker/komodo-repos
+    path: /srv/docker/komodo
     state: directory
     owner: docker
     group: docker
@@ -61,7 +61,7 @@
 - name: Deploy the Komodo compose file
   ansible.builtin.copy:
     src: compose.yaml
-    dest: /srv/docker/komodo/compose.yaml
+    dest: /srv/docker/komodo-stack/compose.yaml
     owner: docker
     group: docker
     mode: "0644"
@@ -70,7 +70,7 @@
 - name: Deploy the Komodo environment file
   ansible.builtin.copy:
     src: .env
-    dest: /srv/docker/komodo/.env
+    dest: /srv/docker/komodo-stack/.env
     owner: docker
     group: docker
     mode: "0600"
@@ -83,12 +83,12 @@
   # level), so sudo -u needs no password.
   ansible.builtin.command: sudo -u docker -H docker compose -p komodo up -d
   args:
-    chdir: /srv/docker/komodo
+    chdir: /srv/docker/komodo-stack
   changed_when: true
 
 - name: Wait for Core to generate its keypair
   ansible.builtin.wait_for:
-    path: /srv/docker/komodo/data/keys/core.pub
+    path: /srv/docker/komodo-stack/data/keys/core.pub
     timeout: 30
 
 - name: Read Core's public key
@@ -96,7 +96,7 @@
   # so a rebuilt Core's new key reaches every agent automatically instead
   # of a stale copy committed to git.
   ansible.builtin.slurp:
-    src: /srv/docker/komodo/data/keys/core.pub
+    src: /srv/docker/komodo-stack/data/keys/core.pub
   register: _komodo_core_pub_raw
 
 - name: Expose Core's public key as a fact

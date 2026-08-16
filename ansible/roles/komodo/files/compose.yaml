@@ -43,4 +43,4 @@ services:
       - ./data/keys:/config/keys
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc:/proc
-      - /srv/docker/komodo-repos:/etc/komodo
+      - /srv/docker/komodo:/etc/komodo
