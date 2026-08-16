@@ -1,0 +1,30 @@
+---
+# View-only RBAC (built-in "view" ClusterRole), not the chart's cluster-admin
+# default - safe to try locally now, and already the right posture if this
+# ever gets an Ingress later. No Ingress yet on purpose - port-forward only
+# for now:
+#   ./kubectl.sh -n headlamp port-forward svc/headlamp 4466:80
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: headlamp
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes-sigs.github.io/headlamp/
+    chart: headlamp
+    targetRevision: 0.44.0
+    helm:
+      values: |
+        clusterRoleBinding:
+          clusterRoleName: view
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: headlamp
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
