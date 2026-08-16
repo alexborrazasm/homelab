@@ -87,9 +87,17 @@ the two `ClusterIssuer`s. The one thing that's still manual, on purpose -
 secrets never live in git:
 
 ```bash
-./apply-secrets.sh      # creates cloudflare-api-token-secret in the cert-manager namespace
+./apply-secrets.sh      # creates cloudflare-api-token-secret in the cert-manager and ddns namespaces
 ```
 
 Use `letsencrypt-cloudflare-staging` on a `Certificate`/Ingress while
 testing, `letsencrypt-cloudflare` only once that issues cleanly - see the
 rate-limit comment in `cert-manager/cluster-issuer-staging.yaml`.
+
+## Dynamic DNS
+
+`apps/ddns.yaml` -> `ddns/` runs [favonia/cloudflare-ddns](https://github.com/favonia/cloudflare-ddns),
+keeping `*.alexborrazasm.dev` pointed at this network's public IP (the
+apex record is left alone - it points at GitHub Pages, not here). Same
+Cloudflare token as cert-manager (`./apply-secrets.sh` above covers it,
+no separate token needed - DNS:Edit on the zone is enough for both).

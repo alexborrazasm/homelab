@@ -10,10 +10,16 @@ set -a
 source .env
 set +a
 
-./kubectl.sh create namespace cert-manager \
-  --dry-run=client -o yaml | ./kubectl.sh apply -f -
+# Same Cloudflare token, needed in both namespaces - cert-manager's DNS-01
+# solver and the ddns updater both only need DNS:Edit + Zone:Read on the
+# alexborrazasm.dev zone, so one token covers both instead of minting a
+# second one.
+for ns in cert-manager ddns; do
+  ./kubectl.sh create namespace "${ns}" \
+    --dry-run=client -o yaml | ./kubectl.sh apply -f -
 
-./kubectl.sh create secret generic cloudflare-api-token-secret \
-  --namespace cert-manager \
-  --from-literal=api-token="${CLOUDFLARE_API_TOKEN}" \
-  --dry-run=client -o yaml | ./kubectl.sh apply -f -
+  ./kubectl.sh create secret generic cloudflare-api-token-secret \
+    --namespace "${ns}" \
+    --from-literal=api-token="${CLOUDFLARE_API_TOKEN}" \
+    --dry-run=client -o yaml | ./kubectl.sh apply -f -
+done
