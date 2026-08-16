@@ -2,16 +2,17 @@
 	email alexborrazasm@gmail.com
 }
 
-ping.alexborrazasm.dev {
-	tls {
-		dns cloudflare {env.CF_API_TOKEN}
-	}
-	respond "pong"
-}
-
 *.alexborrazasm.dev {
 	tls {
 		dns cloudflare {env.CF_API_TOKEN}
 	}
-	respond "ok"
+
+	@ping host ping.alexborrazasm.dev
+	handle @ping {
+		respond "pong"
+	}
+
+	handle {
+		respond "ok"
+	}
 }
