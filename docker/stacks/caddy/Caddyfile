@@ -11,6 +11,11 @@
 	handle @ping {
 		respond "pong"
 	}
+	
+	@hello host hello.alexborrazasm.dev
+	handle @hello {
+		respond "hello"
+	}
 
 	handle {
 		respond "ok"
