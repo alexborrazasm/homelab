@@ -14,6 +14,7 @@ iface {{ proxmox_net_nic_lan }}.20 inet manual
 auto {{ proxmox_net_nic_lan }}.30
 iface {{ proxmox_net_nic_lan }}.30 inet manual
 
+auto {{ proxmox_net_nic_san }}
 iface {{ proxmox_net_nic_san }} inet manual
     mtu {{ proxmox_net_vmbrsan_mtu }}
 
