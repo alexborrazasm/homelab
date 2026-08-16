@@ -1,5 +1,9 @@
 # docker/ cheat sheet
 
+Management host is `panel` (`192.168.9.10`, LAN - not DMZ, since it holds
+cluster-wide control/observability, not a public-facing service): Komodo
+now, a Headscale exit node and Grafana planned later.
+
 Docker itself and the Komodo stack (Mongo + Core + Periphery) are
 installed by Ansible - see `ansible/roles/docker`, `ansible/roles/komodo`,
 `ansible/playbooks/docker.yml`. This directory is where the actual

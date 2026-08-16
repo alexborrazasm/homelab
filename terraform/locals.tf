@@ -24,17 +24,17 @@ locals {
   #   ]
   # }
   vms = {
-    test = {
-      vm_id              = 310
+    panel = {
+      vm_id              = 110
       memory_mb          = 2048
       memory_floating_mb = 1024
       swap_mb            = 1024
       disk_gb            = 20
-      tags               = ["test", "dmz", "docker"]
+      tags               = ["panel", "lan", "docker"]
       dns_domain         = "home.arpa"
       ansible_groups     = ["docker", "komodo"]
       networks = [
-        { bridge = "vmbr30", ip = "10.0.0.10", gateway = "10.0.0.1" },
+        { bridge = "vmbr0", ip = "192.168.9.10", gateway = "192.168.9.1" },
       ]
     }
   }
