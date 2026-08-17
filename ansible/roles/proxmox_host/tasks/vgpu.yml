@@ -8,15 +8,19 @@
   # intel-gpu-tools' own intel_gpu_top is stuck on 2.0-1 in Debian trixie,
   # which predates xe driver support - it still uses the i915 PMU/perf
   # interface, so it fails ("Kernel 4.16 or newer is required for i915 PMU
-  # support") on every VF even with an explicit device filter. nvtop's Xe
-  # backend actually works here; kept intel-gpu-tools anyway for its other
-  # utilities (intel_reg, etc).
+  # support") on every VF even with an explicit device filter. Kept for
+  # its other utilities (intel_reg, etc) anyway.
   ansible.builtin.apt:
-    name:
-      - intel-gpu-tools
-      - nvtop
+    name: intel-gpu-tools
     state: present
     update_cache: true
+
+- name: Remove nvtop
+  # Once a VF is handed to a guest, the host has no visibility into its
+  # usage anymore - nvtop here shows nothing useful. Confirmed live.
+  ansible.builtin.apt:
+    name: nvtop
+    state: absent
 
 - name: Force the xe driver instead of i915 (only xe supports SR-IOV here)
   ansible.builtin.copy:
@@ -73,3 +77,48 @@
     name: intel-gpu-sriov
     enabled: true
     state: started
+
+- name: Check existing PCI resource mappings
+  ansible.builtin.command: pvesh get /cluster/mapping/pci --output-format json
+  changed_when: false
+  check_mode: false
+  register: _pci_mappings
+
+- name: Read each VF's IOMMU group
+  # Required in the mapping below - Proxmox refuses to start a VM with a
+  # mapping missing it ("PCI device mapping invalid (hardware probably
+  # changed): missing expected property 'iommugroup'"), confirmed live.
+  ansible.builtin.shell: >
+    set -o pipefail && basename "$(readlink /sys/bus/pci/devices/{{ proxmox_vgpu_pci_slot }}.{{ item }}/iommu_group)"
+  args:
+    executable: /bin/bash
+  loop: "{{ range(1, proxmox_vgpu_num_vfs + 1) | list }}"
+  changed_when: false
+  register: _vgpu_iommu_groups
+
+- name: Create a resource mapping for each VF that doesn't have one yet
+  # Proxmox only lets root@pam set hostpci0 to a raw PCI ID - a Resource
+  # Mapping is the one way to let the (non-root) Terraform token attach a
+  # PCI device to a VM (see the "Mapping.Use" privilege on TerraformProv
+  # in terraform_api.yml). One mapping per VF so any VM can reference one
+  # by name in terraform/locals.tf's hostpci field.
+  ansible.builtin.command: >
+    pvesh create /cluster/mapping/pci
+    --id intel-gpu-vf{{ item.item }}
+    --map "node=pve,path={{ proxmox_vgpu_pci_slot }}.{{ item.item }},id={{ proxmox_vgpu_vf_pci_id }},subsystem-id={{ proxmox_vgpu_vf_subsystem_id }},iommugroup={{ item.stdout }}"
+  loop: "{{ _vgpu_iommu_groups.results }}"
+  when: "('intel-gpu-vf' ~ item.item) not in (_pci_mappings.stdout | from_json | map(attribute='id') | list)"
+
+- name: Fix up resource mappings missing an IOMMU group or subsystem ID
+  # Proxmox validates both against the live hardware before it'll start a
+  # VM using the mapping ("PCI device mapping invalid (hardware probably
+  # changed): missing expected property '...'"), confirmed live for both.
+  ansible.builtin.command: >
+    pvesh set /cluster/mapping/pci/intel-gpu-vf{{ item.item }}
+    --map "node=pve,path={{ proxmox_vgpu_pci_slot }}.{{ item.item }},id={{ proxmox_vgpu_vf_pci_id }},subsystem-id={{ proxmox_vgpu_vf_subsystem_id }},iommugroup={{ item.stdout }}"
+  loop: "{{ _vgpu_iommu_groups.results }}"
+  when: >
+    (_pci_mappings.stdout | from_json
+     | selectattr('id', 'equalto', 'intel-gpu-vf' ~ item.item)
+     | map(attribute='map') | map('first') | list | first | default(''))
+    != ("node=pve,path=" ~ proxmox_vgpu_pci_slot ~ "." ~ item.item ~ ",id=" ~ proxmox_vgpu_vf_pci_id ~ ",subsystem-id=" ~ proxmox_vgpu_vf_subsystem_id ~ ",iommugroup=" ~ item.stdout)

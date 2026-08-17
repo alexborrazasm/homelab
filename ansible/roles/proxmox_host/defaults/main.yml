@@ -11,9 +11,15 @@ proxmox_shell_warning: true
 proxmox_terraform_api: true
 
 proxmox_vgpu_enable: true
-# 0000:00:02.0 - the NUC's integrated Alder Lake GPU (lspci -k | grep -A3 VGA).
-proxmox_vgpu_pci_device: "0000:00:02.0"
-proxmox_vgpu_num_vfs: 2
+# 0000:00:02 - the NUC's integrated Alder Lake GPU slot (lspci -k | grep -A3 VGA).
+proxmox_vgpu_pci_slot: "0000:00:02"
+proxmox_vgpu_pci_device: "{{ proxmox_vgpu_pci_slot }}.0"
+proxmox_vgpu_num_vfs: 7
+# vendor:device ID every VF reports (lspci -nn -s <vf-slot>) - all VFs of
+# the same GPU share it, only the PF's own ID differs.
+proxmox_vgpu_vf_pci_id: "8086:46b3"
+# subsystem vendor:device ID (lspci -nn -s <vf-slot> -vv | grep -i subsystem) - also shared across every VF.
+proxmox_vgpu_vf_subsystem_id: "8086:3024"
 
 proxmox_vm_template_create: true
 proxmox_template_vmid: 9000

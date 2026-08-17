@@ -7,6 +7,13 @@
     msg: "ansible/roles/gpu only supports RedHat-family guests right now"
   when: ansible_facts['os_family'] != "RedHat"
 
+- name: Remove nvtop
+  # SR-IOV VFs don't expose the telemetry nvtop needs - shows nothing
+  # useful for a passed-through GPU VF. Confirmed live.
+  ansible.builtin.dnf:
+    name: nvtop
+    state: absent
+
 - name: Force xe to claim the GPU virtual function (i915 doesn't support it)
   ansible.builtin.copy:
     dest: /etc/modprobe.d/intel-graphics.conf

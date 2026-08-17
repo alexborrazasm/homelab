@@ -15,7 +15,7 @@
     Sys.Modify VM.Allocate VM.Audit VM.Clone VM.Config.CDROM VM.Config.Cloudinit
     VM.Config.CPU VM.Config.Disk VM.Config.HWType VM.Config.Memory
     VM.Config.Network VM.Config.Options VM.Migrate VM.PowerMgmt
-    VM.GuestAgent.Audit SDN.Use"
+    VM.GuestAgent.Audit SDN.Use Mapping.Use"
   when: "'TerraformProv' not in (_pve_roles.stdout | from_json | map(attribute='roleid') | list)"
 
 - name: Keep the Terraform role privileges in sync
@@ -24,14 +24,17 @@
   # once, this keeps it current on every run. Safe/idempotent either way.
   # VM.GuestAgent.Audit (read-only: query IPs/info) deliberately included so
   # the provider can wait for the guest IP; VM.GuestAgent.Unrestricted
-  # (arbitrary exec inside guests) deliberately left out.
+  # (arbitrary exec inside guests) deliberately left out. Mapping.Use lets
+  # this token attach a Resource-Mapped PCI device (e.g. a GPU VF, see
+  # vgpu.yml) to a VM - Proxmox only lets root@pam set hostpci0 to a raw
+  # PCI ID directly, mappings are the delegable path around that.
   ansible.builtin.command: >
     pveum role modify TerraformProv -privs
     "Datastore.AllocateSpace Datastore.Audit Pool.Allocate Sys.Audit Sys.Console
     Sys.Modify VM.Allocate VM.Audit VM.Clone VM.Config.CDROM VM.Config.Cloudinit
     VM.Config.CPU VM.Config.Disk VM.Config.HWType VM.Config.Memory
     VM.Config.Network VM.Config.Options VM.Migrate VM.PowerMgmt
-    VM.GuestAgent.Audit SDN.Use"
+    VM.GuestAgent.Audit SDN.Use Mapping.Use"
   changed_when: false
 
 - name: Check existing PVE users

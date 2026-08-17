@@ -17,6 +17,7 @@ locals {
   #   tags               = ["service", "homelab"]   # optional, default [] - order doesn't matter, sorted in modules/vm (Proxmox sorts server-side anyway)
   #   dns_domain         = "home.arpa" # optional, default null - DNS search domain. DNS server is always networks[0].gateway, not a separate field
   #   ansible_groups     = ["db"]                   # optional, default [] - extra Ansible groups (beyond "vms"), so playbooks can target a subset (e.g. only db nodes) without touching every VM
+  #   hostpci            = "intel-gpu-vf2"          # optional, default null - PCI Resource Mapping name, e.g. an Intel GPU SR-IOV VF (see ansible/roles/proxmox_host/tasks/vgpu.yml for how VFs + mappings get created on pve)
   #   networks = [
   #     # bridge: vmbr0 (LAN), vmbr20 (IOT), vmbr30 (DMZ), vmbrSAN (direct NAS/NFS access)
   #     { bridge = "vmbr0", ip = "192.168.9.99", gateway = "192.168.9.1" },  # first = the one Ansible connects to. ip has no /24 - the module appends it
@@ -46,6 +47,7 @@ locals {
       tags               = ["lan", "docker"]
       dns_domain         = "home.arpa"
       ansible_groups     = ["docker", "komodo_agent", "gpu"]
+      hostpci            = "intel-gpu-vf2"
       networks = [
         { bridge = "vmbr0", ip = "192.168.9.11", gateway = "192.168.9.1" },
       ]

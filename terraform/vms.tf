@@ -12,4 +12,5 @@ module "vm" {
   cloudinit_upgrade  = try(each.value.cloudinit_upgrade, true)
   tags               = try(each.value.tags, [])
   dns_domain         = try(each.value.dns_domain, null)
+  hostpci            = try(each.value.hostpci, null)
 }

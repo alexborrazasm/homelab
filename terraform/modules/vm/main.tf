@@ -58,6 +58,12 @@ variable "dns_domain" {
   default     = null
 }
 
+variable "hostpci" {
+  description = "Optional PCI Resource Mapping name (Datacenter -> Resource Mappings), e.g. an Intel GPU SR-IOV VF (\"intel-gpu-vf2\" - see ansible/roles/proxmox_host/tasks/vgpu.yml for how these get created). Proxmox only lets root@pam set a raw PCI ID directly, so this has to be a mapping for a non-root token to use it. null skips it."
+  type        = string
+  default     = null
+}
+
 resource "proxmox_virtual_environment_vm" "this" {
   name      = var.name
   node_name = var.node_name
@@ -92,6 +98,14 @@ resource "proxmox_virtual_environment_vm" "this" {
     for_each = var.networks
     content {
       bridge = network_device.value.bridge
+    }
+  }
+
+  dynamic "hostpci" {
+    for_each = var.hostpci != null ? [var.hostpci] : []
+    content {
+      device  = "hostpci0"
+      mapping = hostpci.value
     }
   }
 
