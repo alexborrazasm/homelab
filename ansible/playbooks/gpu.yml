@@ -1,0 +1,7 @@
+---
+- name: Set up GPU virtual function passthrough guests
+  hosts: gpu
+  become: true
+  gather_facts: true
+  roles:
+    - gpu

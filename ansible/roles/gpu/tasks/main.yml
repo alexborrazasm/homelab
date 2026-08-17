@@ -1,0 +1,29 @@
+---
+# For VMs that receive an Intel GPU SR-IOV virtual function passed through
+# from pve (see ansible/roles/proxmox_host/tasks/vgpu.yml for the host
+# side). RedHat-family only for now - every VM is AlmaLinux.
+- name: Fail on unsupported OS family
+  ansible.builtin.fail:
+    msg: "ansible/roles/gpu only supports RedHat-family guests right now"
+  when: ansible_facts['os_family'] != "RedHat"
+
+- name: Force xe to claim the GPU virtual function (i915 doesn't support it)
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/intel-graphics.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      options i915 force_probe=!{{ gpu_vf_device_id }}
+      options xe force_probe={{ gpu_vf_device_id }}
+  register: _gpu_modprobe
+
+- name: Regenerate initramfs
+  ansible.builtin.command: dracut -f
+  when: _gpu_modprobe is changed
+  changed_when: true
+
+- name: Warn that a reboot is needed for the driver change to take effect
+  ansible.builtin.debug:
+    msg: "intel-graphics.conf changed - reboot this VM for xe to bind the GPU VF."
+  when: _gpu_modprobe is changed

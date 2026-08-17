@@ -1,0 +1,7 @@
+---
+# Device ID the GPU virtual function reports inside the guest - not the
+# same ID as the physical GPU (lspci -k -s <vf-slot> to check). xe doesn't
+# have this ID in its default probe list yet, so it has to be forced
+# explicitly; i915 tries to claim it first and fails outright, so it's
+# blocked for this ID specifically.
+gpu_vf_device_id: "46b3"
