@@ -4,9 +4,17 @@
 # i915 is force-disabled and xe force-enabled. VFs created here show up as
 # extra PCI devices that can be passed through to VMs.
 
-- name: Install intel-gpu-tools (intel_gpu_top etc. for VF monitoring)
+- name: Install GPU tooling
+  # intel-gpu-tools' own intel_gpu_top is stuck on 2.0-1 in Debian trixie,
+  # which predates xe driver support - it still uses the i915 PMU/perf
+  # interface, so it fails ("Kernel 4.16 or newer is required for i915 PMU
+  # support") on every VF even with an explicit device filter. nvtop's Xe
+  # backend actually works here; kept intel-gpu-tools anyway for its other
+  # utilities (intel_reg, etc).
   ansible.builtin.apt:
-    name: intel-gpu-tools
+    name:
+      - intel-gpu-tools
+      - nvtop
     state: present
     update_cache: true
 
