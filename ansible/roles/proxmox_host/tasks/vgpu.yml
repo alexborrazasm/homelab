@@ -4,6 +4,12 @@
 # i915 is force-disabled and xe force-enabled. VFs created here show up as
 # extra PCI devices that can be passed through to VMs.
 
+- name: Install intel-gpu-tools (intel_gpu_top etc. for VF monitoring)
+  ansible.builtin.apt:
+    name: intel-gpu-tools
+    state: present
+    update_cache: true
+
 - name: Force the xe driver instead of i915 (only xe supports SR-IOV here)
   ansible.builtin.copy:
     dest: /etc/modprobe.d/intel-graphics.conf
