@@ -4,11 +4,34 @@
 - name: Enable EPEL where needed
   ansible.builtin.import_tasks: epel.yml
 
-- name: Install common CLI tools
+- name: Install common CLI tools (RHEL family)
+  # install_weak_deps: false - neovim recommends tree-sitter-cli, which in
+  # turn recommends nodejs (+npm+docs). None of that is actually used
+  # (nvim-treesitter fetches prebuilt parsers), so without this every host
+  # ends up with a whole Node.js runtime installed as pure side effect.
+  when: ansible_facts['os_family'] == "RedHat"
+  ansible.builtin.dnf:
+    name: "{{ common_tools_packages + (common_tools_packages_by_os_family[ansible_facts['os_family']] | default([])) }}"
+    state: present
+    update_cache: true
+    install_weak_deps: false
+
+- name: Install common CLI tools (non-RHEL)
+  when: ansible_facts['os_family'] != "RedHat"
   ansible.builtin.package:
     name: "{{ common_tools_packages + (common_tools_packages_by_os_family[ansible_facts['os_family']] | default([])) }}"
     state: present
     update_cache: true
+
+- name: Remove nodejs pulled in as a weak dep of tree-sitter-cli (RHEL family)
+  when: ansible_facts['os_family'] == "RedHat"
+  ansible.builtin.dnf:
+    name:
+      - nodejs
+      - nodejs-npm
+      - nodejs-docs
+      - tree-sitter-cli
+    state: absent
 
 - name: Install eza (not packaged everywhere - e.g. missing from EPEL 10)
   ansible.builtin.package:
