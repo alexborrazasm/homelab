@@ -28,6 +28,11 @@
   tags: [vm-template]
   when: proxmox_vm_template_create | bool
 
+- name: Set up Intel GPU SR-IOV vGPUs
+  ansible.builtin.import_tasks: vgpu.yml
+  tags: [vgpu]
+  when: proxmox_vgpu_enable | bool
+
 - name: Upgrade packages (opt-in, run with --tags upgrade)
   ansible.builtin.import_tasks: upgrade.yml
   tags: [upgrade, never]

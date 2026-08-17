@@ -1,0 +1,61 @@
+---
+# Intel iGPU SR-IOV vGPUs (Alder Lake UHD Graphics on the NUC 12 Pro) - xe
+# is the only driver of the two that supports SR-IOV on this hardware, so
+# i915 is force-disabled and xe force-enabled. VFs created here show up as
+# extra PCI devices that can be passed through to VMs.
+
+- name: Force the xe driver instead of i915 (only xe supports SR-IOV here)
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/intel-graphics.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      options i915 force_probe=!*
+      options xe force_probe=*
+  notify: "Update initramfs"
+
+- name: Enable IOMMU/VT-d on the kernel command line
+  # This platform's DMAR tables already enable IOMMU groups even without
+  # this (confirmed live), but setting it explicitly makes the intent
+  # durable instead of relying on that default surviving a firmware/kernel
+  # change.
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX_DEFAULT='
+    line: 'GRUB_CMDLINE_LINUX_DEFAULT="quiet intel_iommu=on iommu=pt"'
+  notify: "Update grub"
+
+- name: Deploy the systemd unit that (re)creates the VFs on every boot
+  # sriov_numvfs under /sys is runtime-only and resets to 0 on every boot,
+  # so the VF count has to be reapplied at each boot, not just set once by
+  # hand.
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/intel-gpu-sriov.service
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Enable Intel GPU SR-IOV virtual functions
+      After=multi-user.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/bin/sh -c 'echo {{ proxmox_vgpu_num_vfs }} > /sys/bus/pci/devices/{{ proxmox_vgpu_pci_device }}/sriov_numvfs'
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+  register: _vgpu_systemd_unit
+
+- name: Reload systemd units
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: _vgpu_systemd_unit is changed
+
+- name: Enable and start the SR-IOV VF service
+  ansible.builtin.systemd:
+    name: intel-gpu-sriov
+    enabled: true
+    state: started

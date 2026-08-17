@@ -8,3 +8,11 @@
   ansible.builtin.apt:
     update_cache: true
   listen: "Update apt cache"
+
+- name: Update initramfs
+  ansible.builtin.command: update-initramfs -u
+  listen: "Update initramfs"
+
+- name: Update grub
+  ansible.builtin.command: update-grub
+  listen: "Update grub"
