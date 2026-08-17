@@ -67,6 +67,42 @@
     content: |
       xt_addrtype
 
+- name: Ensure the docker.service systemd drop-in directory exists
+  # On a cold boot, docker.service can start right after firewalld.service
+  # reports active but before firewalld has actually finished setting up
+  # its nftables tables - dockerd then fails to append its NAT rule
+  # ("RULE_APPEND failed (No such file or directory)"). Restart=always is
+  # already set upstream, but the default 3-tries/60s budget can run out
+  # before firewalld settles, leaving docker.service "failed" until
+  # someone starts it by hand. More retries with a short delay between
+  # them ride out the race instead.
+  ansible.builtin.file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Give Docker more restart budget against the firewalld boot race
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/docker.service.d/firewalld-race.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      StartLimitIntervalSec=120
+      StartLimitBurst=10
+
+      [Service]
+      RestartSec=5
+  register: _docker_systemd_override
+
+- name: Reload systemd units
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: _docker_systemd_override is changed
+
 - name: Enable and start Docker
   ansible.builtin.systemd:
     name: docker
