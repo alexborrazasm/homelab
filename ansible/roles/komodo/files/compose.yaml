@@ -59,3 +59,9 @@ services:
       # real host - where it doesn't exist - instead of finding the repo
       # Periphery actually cloned. See PERIPHERY_ROOT_DIRECTORY in .env.
       - /srv/docker/komodo:/srv/docker/komodo
+      # Same reasoning, for Stacks whose data lives outside the repo
+      # clone (e.g. jellyfin's Pre Deploy does mkdir/chown under
+      # /srv/docker/data) - without this identity mount, that Pre Deploy
+      # command would create the directory inside Periphery's own
+      # container instead of on the real host.
+      - /srv/docker/data:/srv/docker/data

@@ -30,6 +30,18 @@
     group: docker
     mode: "0755"
 
+- name: Ensure /srv/docker/data exists (external home for Stacks' persistent data)
+  # Identity-mounted into Periphery too (see files/compose.yaml) - Stacks
+  # whose data shouldn't live inside the repo clone (git clean safety)
+  # get their own subdirectory created/chowned here by a Pre Deploy
+  # command, set only in Komodo's UI per stack, not in git.
+  ansible.builtin.file:
+    path: /srv/docker/data
+    state: directory
+    owner: docker
+    group: docker
+    mode: "0755"
+
 - name: Deploy the Periphery compose file
   ansible.builtin.copy:
     src: compose.yaml
