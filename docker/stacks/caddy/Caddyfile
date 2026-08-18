@@ -1,5 +1,5 @@
 {
-	email alexborrazasm@gmail.com
+	email {$EMAIL}
 	auto_https disable_redirects
 }
 
