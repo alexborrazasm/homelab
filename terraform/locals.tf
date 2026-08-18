@@ -65,6 +65,21 @@ locals {
         { bridge = "vmbr30", ip = "10.0.0.10", gateway = "10.0.0.1" },
       ]
     }
+    media = {
+      vm_id              = 311
+      memory_mb          = 4096
+      memory_floating_mb = 2048
+      swap_mb            = 1024
+      disk_gb            = 80
+      tags               = ["media", "dmz", "docker"]
+      dns_domain         = "home.arpa"
+      ansible_groups     = ["docker", "komodo_agent", "gpu"]
+      hostpci            = "intel-gpu-vf3"
+      networks = [
+        { bridge = "vmbr30", ip = "10.0.0.11", gateway = "10.0.0.1" },
+        { bridge = "vmbrSAN", ip = "10.10.10.11", gateway = null },
+      ]
+    }
   }
 
   # Derives {group_name => [host names]} from each VM's ansible_groups, so
