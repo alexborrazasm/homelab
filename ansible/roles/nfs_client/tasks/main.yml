@@ -1,0 +1,63 @@
+---
+# RedHat-family only for now - every VM is AlmaLinux.
+- name: Fail on unsupported OS family
+  ansible.builtin.fail:
+    msg: "ansible/roles/nfs_client only supports RedHat-family hosts right now"
+  when: ansible_facts['os_family'] != "RedHat"
+
+- name: Install NFS client utilities
+  ansible.builtin.dnf:
+    name: nfs-utils
+    state: present
+
+- name: Create mount point directories
+  ansible.builtin.file:
+    path: "/mnt/{{ item.name }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ nfs_client_mounts }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Deploy a systemd .mount unit for each NFS mount
+  # A .mount unit, not /etc/fstab - same "boot-time state as a managed
+  # unit, not a static file" pattern as intel-gpu-sriov.service. Unit
+  # filename has to be the systemd-escaped mount path - simple here since
+  # every mount lives directly under /mnt/<name>.
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/mnt-{{ item.name }}.mount"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=NFS mount for {{ item.name }}
+      After=network-online.target
+      Wants=network-online.target
+
+      [Mount]
+      What={{ item.server }}:{{ item.export }}
+      Where=/mnt/{{ item.name }}
+      Type=nfs
+      Options={{ item.options | default('rw,hard,rsize=1048576,wsize=1048576') }}
+
+      [Install]
+      WantedBy=multi-user.target
+  loop: "{{ nfs_client_mounts }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: _nfs_client_units
+
+- name: Reload systemd units
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: _nfs_client_units is changed
+
+- name: Enable and start each NFS mount
+  ansible.builtin.systemd:
+    name: "mnt-{{ item.name }}.mount"
+    enabled: true
+    state: started
+  loop: "{{ nfs_client_mounts }}"
+  loop_control:
+    label: "{{ item.name }}"

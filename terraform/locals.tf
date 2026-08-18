@@ -73,7 +73,7 @@ locals {
       disk_gb            = 80
       tags               = ["media", "dmz", "docker"]
       dns_domain         = "home.arpa"
-      ansible_groups     = ["docker", "komodo_agent", "gpu"]
+      ansible_groups     = ["docker", "komodo_agent", "gpu", "nfs_client"]
       hostpci            = "intel-gpu-vf3"
       networks = [
         { bridge = "vmbr30", ip = "10.0.0.11", gateway = "10.0.0.1" },

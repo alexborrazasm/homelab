@@ -1,0 +1,7 @@
+---
+- name: Mount NFS shares
+  hosts: nfs_client
+  become: true
+  gather_facts: true
+  roles:
+    - nfs_client

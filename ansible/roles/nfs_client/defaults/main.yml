@@ -1,0 +1,6 @@
+---
+# Each item: {name, server, export, options (optional)}. Mounted at
+# /mnt/{{ name }}, owned by whatever the NFS server exports it as (chown
+# it to 900:900 on the NAS side - a local chown here would just get
+# overridden once the mount is live).
+nfs_client_mounts: []
