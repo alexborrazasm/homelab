@@ -8,8 +8,8 @@ services:
     restart: unless-stopped
     user: "900:900"
     volumes:
-      - ./data/mongo-data:/data/db
-      - ./data/mongo-config:/data/configdb
+      - /srv/docker/data/komodo/mongo-data:/data/db
+      - /srv/docker/data/komodo/mongo-config:/data/configdb
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${KOMODO_DATABASE_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${KOMODO_DATABASE_PASSWORD}
@@ -27,7 +27,7 @@ services:
     environment:
       KOMODO_DATABASE_ADDRESS: mongo:27017
     volumes:
-      - ./data/keys:/config/keys
+      - /srv/docker/data/komodo/keys:/config/keys
       - ${COMPOSE_KOMODO_BACKUPS_PATH}:/backups
 
   periphery:
@@ -47,7 +47,7 @@ services:
       - core
     env_file: ./.env
     volumes:
-      - ./data/keys:/config/keys
+      - /srv/docker/data/komodo/keys:/config/keys
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc:/proc
       # Identity bind mount (same path inside and outside) - Periphery
