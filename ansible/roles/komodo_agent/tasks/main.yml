@@ -10,9 +10,11 @@
 - name: Ensure the keys data directory (and its contents) are owned by docker
   # recurse: true - Periphery generated its key files here as root before
   # this role pinned it to 900:900. Without recursing, only the directory
-  # itself gets fixed, not files already inside it.
+  # itself gets fixed, not files already inside it. Lives under
+  # /srv/docker/data (not next to compose.yaml) so it's covered by
+  # whatever backs up that directory - same reasoning as the komodo role.
   ansible.builtin.file:
-    path: /srv/docker/komodo-agent/data/keys
+    path: /srv/docker/data/komodo-agent/keys
     state: directory
     owner: docker
     group: docker
@@ -63,7 +65,7 @@
   # plays first) - see ansible/roles/komodo/tasks/main.yml.
   ansible.builtin.copy:
     content: "{{ hostvars[groups['komodo'][0]]['komodo_core_public_key'] }}"
-    dest: /srv/docker/komodo-agent/data/keys/core.pub
+    dest: /srv/docker/data/komodo-agent/keys/core.pub
     owner: docker
     group: docker
     mode: "0644"

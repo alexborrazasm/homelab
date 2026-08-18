@@ -16,7 +16,7 @@ services:
     # Core (PERIPHERY_CORE_ADDRESS below), never an inbound one.
     env_file: ./.env
     volumes:
-      - ./data/keys:/config/keys
+      - /srv/docker/data/komodo-agent/keys:/config/keys
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc:/proc
       # Identity bind mount (same path inside and outside) - Periphery
