@@ -14,6 +14,12 @@ services:
       - CF_API_TOKEN=${CF_API_TOKEN}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
-      - ./data:/data
-      - ./config:/config
+      # Outside the repo clone on purpose (not ./data, ./config) - so a
+      # git clean on the Periphery-managed clone can't ever touch this
+      # (TLS certs, ACME account state). Created + chowned by the Stack's
+      # Pre Deploy command in Komodo's UI (mkdir -p
+      # /srv/docker/data/caddy/{data,config} && chown -R 900:900
+      # /srv/docker/data/caddy), not tracked in git.
+      - /srv/docker/data/caddy/data:/data
+      - /srv/docker/data/caddy/config:/config
     restart: unless-stopped
