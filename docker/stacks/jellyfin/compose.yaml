@@ -14,5 +14,5 @@ services:
     volumes:
       - ./config:/config
       - ./cache:/cache
-      - /mnt/jellyfin:/media:ro
+      - /mnt/jellyfin:/media
     restart: unless-stopped
