@@ -14,9 +14,18 @@ iface {{ proxmox_net_nic_lan }}.20 inet manual
 auto {{ proxmox_net_nic_lan }}.30
 iface {{ proxmox_net_nic_lan }}.30 inet manual
 
-auto {{ proxmox_net_nic_san }}
+allow-hotplug {{ proxmox_net_nic_san }}
 iface {{ proxmox_net_nic_san }} inet manual
     mtu {{ proxmox_net_vmbrsan_mtu }}
+    # vmbrSAN (bridge-ports below) comes up at early boot before this
+    # Thunderbolt/USB4 NIC has enumerated, so ifup never adds it as a
+    # bridge port there ("bridge port enp4s0 does not exist"). allow-hotplug
+    # gets the link itself up once udev sees it appear, but doesn't retroactively
+    # join an already-up bridge - only this interface's own ifup does that,
+    # so join it explicitly here. Confirmed live: without this, the NIC
+    # comes up standalone but never gets bridged.
+    post-up ip link set dev {{ proxmox_net_nic_san }} master vmbrSAN
+    pre-down ip link set dev {{ proxmox_net_nic_san }} nomaster
 
 iface {{ proxmox_net_nic_wifi }} inet manual
 
