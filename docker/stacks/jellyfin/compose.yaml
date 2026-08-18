@@ -12,7 +12,12 @@ services:
     environment:
       - TZ=Europe/Madrid
     volumes:
-      - ./config:/config
-      - ./cache:/cache
+      # Outside the repo clone on purpose (not ./config, ./cache) - so a
+      # git clean on the Periphery-managed clone can't ever touch this
+      # data. Created + chowned by the Stack's Pre Deploy command in
+      # Komodo's UI (mkdir -p /srv/docker/data/jellyfin/{config,cache} &&
+      # chown -R 900:900 /srv/docker/data/jellyfin), not tracked in git.
+      - /srv/docker/data/jellyfin/config:/config
+      - /srv/docker/data/jellyfin/cache:/cache
       - /mnt/jellyfin:/media
     restart: unless-stopped
