@@ -1,8 +1,23 @@
 {
 	email alexborrazasm@gmail.com
+	auto_https disable_redirects
+}
+
+(remove-headers) {
+	header -Server
+	header -Via
+	header -X-Powered-By
+}
+
+http:// {
+	import remove-headers
+
+	redir https://{host}{uri} permanent
 }
 
 *.alexborrazasm.dev {
+	import remove-headers
+
 	tls {
 		dns cloudflare {env.CF_API_TOKEN}
 	}
