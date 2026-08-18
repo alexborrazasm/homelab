@@ -7,17 +7,12 @@
 		dns cloudflare {env.CF_API_TOKEN}
 	}
 
-	@ping host ping.alexborrazasm.dev
-	handle @ping {
-		respond "pong"
-	}
-	
-	@hello host hello.alexborrazasm.dev
-	handle @hello {
-		respond "hello"
+	@svc1 host {$DOM1}
+	handle @svc1 {
+		reverse_proxy {$UPSTREAM1}
 	}
 
 	handle {
-		respond "ok"
+		abort
 	}
 }

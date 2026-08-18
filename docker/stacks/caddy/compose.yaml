@@ -9,9 +9,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-    environment:
-      - TZ=Europe/Madrid
-      - CF_API_TOKEN=${CF_API_TOKEN}
+    env_file: ./.env
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
       # Outside the repo clone on purpose (not ./data, ./config) - so a
