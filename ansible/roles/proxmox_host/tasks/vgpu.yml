@@ -44,40 +44,6 @@
     line: 'GRUB_CMDLINE_LINUX_DEFAULT="quiet intel_iommu=on iommu=pt"'
   notify: "Update grub"
 
-- name: Deploy the systemd unit that (re)creates the VFs on every boot
-  # sriov_numvfs under /sys is runtime-only and resets to 0 on every boot,
-  # so the VF count has to be reapplied at each boot, not just set once by
-  # hand.
-  ansible.builtin.copy:
-    dest: /etc/systemd/system/intel-gpu-sriov.service
-    owner: root
-    group: root
-    mode: "0644"
-    content: |
-      [Unit]
-      Description=Enable Intel GPU SR-IOV virtual functions
-      After=multi-user.target
-
-      [Service]
-      Type=oneshot
-      ExecStart=/bin/sh -c 'echo {{ proxmox_vgpu_num_vfs }} > /sys/bus/pci/devices/{{ proxmox_vgpu_pci_device }}/sriov_numvfs'
-      RemainAfterExit=yes
-
-      [Install]
-      WantedBy=multi-user.target
-  register: _vgpu_systemd_unit
-
-- name: Reload systemd units
-  ansible.builtin.systemd:
-    daemon_reload: true
-  when: _vgpu_systemd_unit is changed
-
-- name: Enable and start the SR-IOV VF service
-  ansible.builtin.systemd:
-    name: intel-gpu-sriov
-    enabled: true
-    state: started
-
 - name: Check existing PCI resource mappings
   ansible.builtin.command: pvesh get /cluster/mapping/pci --output-format json
   changed_when: false
@@ -85,9 +51,12 @@
   register: _pci_mappings
 
 - name: Read each VF's IOMMU group
-  # Required in the mapping below - Proxmox refuses to start a VM with a
-  # mapping missing it ("PCI device mapping invalid (hardware probably
-  # changed): missing expected property 'iommugroup'"), confirmed live.
+  # Just for bootstrapping brand-new mappings below - not a source of
+  # truth. VF IOMMU group numbers aren't stable across reboots (confirmed
+  # live: same VF, group 24 one boot, 17 the next - the kernel assigns
+  # them dynamically as VFs are recreated), so whatever's read here at
+  # Ansible-apply-time will usually be stale by the next reboot. The
+  # actual fix-up-on-every-boot happens in the script below.
   ansible.builtin.shell: >
     set -o pipefail && basename "$(readlink /sys/bus/pci/devices/{{ proxmox_vgpu_pci_slot }}.{{ item }}/iommu_group)"
   args:
@@ -109,16 +78,72 @@
   loop: "{{ _vgpu_iommu_groups.results }}"
   when: "('intel-gpu-vf' ~ item.item) not in (_pci_mappings.stdout | from_json | map(attribute='id') | list)"
 
-- name: Fix up resource mappings missing an IOMMU group or subsystem ID
-  # Proxmox validates both against the live hardware before it'll start a
-  # VM using the mapping ("PCI device mapping invalid (hardware probably
-  # changed): missing expected property '...'"), confirmed live for both.
-  ansible.builtin.command: >
-    pvesh set /cluster/mapping/pci/intel-gpu-vf{{ item.item }}
-    --map "node=pve,path={{ proxmox_vgpu_pci_slot }}.{{ item.item }},id={{ proxmox_vgpu_vf_pci_id }},subsystem-id={{ proxmox_vgpu_vf_subsystem_id }},iommugroup={{ item.stdout }}"
-  loop: "{{ _vgpu_iommu_groups.results }}"
-  when: >
-    (_pci_mappings.stdout | from_json
-     | selectattr('id', 'equalto', 'intel-gpu-vf' ~ item.item)
-     | map(attribute='map') | map('first') | list | first | default(''))
-    != ("node=pve,path=" ~ proxmox_vgpu_pci_slot ~ "." ~ item.item ~ ",id=" ~ proxmox_vgpu_vf_pci_id ~ ",subsystem-id=" ~ proxmox_vgpu_vf_subsystem_id ~ ",iommugroup=" ~ item.stdout)
+- name: Deploy the script that (re)creates the VFs and syncs their PCI mappings
+  # sriov_numvfs under /sys is runtime-only and resets to 0 on every boot,
+  # so the VFs have to be recreated at each boot, not just once by hand -
+  # and since that also reassigns IOMMU group numbers (see above), the
+  # mappings have to be re-synced to match every time too, not just
+  # created once from Ansible.
+  ansible.builtin.copy:
+    dest: /usr/local/sbin/intel-gpu-sriov-setup.sh
+    owner: root
+    group: root
+    mode: "0755"
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+
+      echo {{ proxmox_vgpu_num_vfs }} > /sys/bus/pci/devices/{{ proxmox_vgpu_pci_device }}/sriov_numvfs
+
+      for i in $(seq 1 {{ proxmox_vgpu_num_vfs }}); do
+        group=$(basename "$(readlink "/sys/bus/pci/devices/{{ proxmox_vgpu_pci_slot }}.${i}/iommu_group")")
+        pvesh set "/cluster/mapping/pci/intel-gpu-vf${i}" \
+          --map "node=pve,path={{ proxmox_vgpu_pci_slot }}.${i},id={{ proxmox_vgpu_vf_pci_id }},subsystem-id={{ proxmox_vgpu_vf_subsystem_id }},iommugroup=${group}"
+      done
+  register: _vgpu_setup_script
+
+- name: Deploy the systemd unit that runs it on every boot
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/intel-gpu-sriov.service
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Enable Intel GPU SR-IOV virtual functions and sync their PCI mappings
+      # pve-guests.service (autostarts VMs with onboot=1, e.g. iot) is
+      # itself Before=multi-user.target - so an explicit After=multi-user.target
+      # here (tried once, reverted) creates an ordering cycle with the
+      # Before=pve-guests.service below, and systemd breaks the cycle by
+      # deactivating this unit instead of running it. No After= is needed:
+      # WantedBy=multi-user.target below already implies Before=multi-user.target
+      # by default, which is what we want (run early, same as pve-guests).
+      # Without this Before=, the two have no ordering relative to each
+      # other and can race, so a VM needing a VF can lose that race and
+      # fail to start ("PCI device mapping invalid ... not found") even
+      # though the VF gets created a second later. Both failure modes
+      # confirmed live after real pve reboots.
+      Before=pve-guests.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/intel-gpu-sriov-setup.sh
+      RemainAfterExit=yes
+
+      [Install]
+      WantedBy=multi-user.target
+  register: _vgpu_systemd_unit
+
+- name: Reload systemd units
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: _vgpu_systemd_unit is changed
+
+- name: Enable and (re)start the SR-IOV VF service
+  # Restart (not just start) when the script or unit changed, so a stale
+  # mapping gets corrected immediately instead of waiting for the next
+  # reboot.
+  ansible.builtin.systemd:
+    name: intel-gpu-sriov
+    enabled: true
+    state: "{{ 'restarted' if (_vgpu_setup_script is changed or _vgpu_systemd_unit is changed) else 'started' }}"
