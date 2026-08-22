@@ -46,10 +46,11 @@ locals {
       disk_gb            = 20
       tags               = ["lan", "docker"]
       dns_domain         = "home.arpa"
-      ansible_groups     = ["docker", "komodo_agent", "gpu"]
+      ansible_groups     = ["docker", "komodo_agent", "gpu", "nfs_client"]
       hostpci            = "intel-gpu-vf2"
       networks = [
         { bridge = "vmbr0", ip = "192.168.9.11", gateway = "192.168.9.1" },
+        { bridge = "vmbrSAN", ip = "10.10.10.12", gateway = null },
       ]
     }
     frontend = {
