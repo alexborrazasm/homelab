@@ -10,14 +10,29 @@
     name: nfs-utils
     state: present
 
-- name: Create mount point directories
-  ansible.builtin.file:
-    path: "/mnt/{{ item.name }}"
-    state: directory
-    mode: "0755"
+- name: Check whether each mount point is already an active NFS mount
+  ansible.builtin.command: mountpoint -q "/mnt/{{ item.name }}"
   loop: "{{ nfs_client_mounts }}"
   loop_control:
     label: "{{ item.name }}"
+  register: _nfs_mountpoint_check
+  changed_when: false
+  failed_when: false
+
+- name: Create mount point directories (before the NFS mount is live)
+  # Skipped once the path is an active mount - chmod/chown here would
+  # otherwise land on the live NFS share itself (it's the same path),
+  # silently changing real permissions on the NAS. Confirmed live: this
+  # dropped the NAS export's directory from 775 to 755, breaking alex's
+  # group-write access, on a routine re-run.
+  ansible.builtin.file:
+    path: "/mnt/{{ item.item.name }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ _nfs_mountpoint_check.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: item.rc != 0
 
 - name: Deploy a systemd .mount unit for each NFS mount
   # A .mount unit, not /etc/fstab - same "boot-time state as a managed
@@ -61,3 +76,32 @@
   loop: "{{ nfs_client_mounts }}"
   loop_control:
     label: "{{ item.name }}"
+
+- name: Make docker.service wait for the NFS mounts before starting
+  # Without this, docker.service (and any restart: unless-stopped
+  # container) starts as soon as it's up, racing ahead of the NFS
+  # mount(s) on boot. A container whose bind mount source is an NFS
+  # mountpoint captures whatever's there at container-start time (an
+  # empty local dir, since NFS isn't attached yet) and never sees the
+  # real content even after the mount catches up a few seconds later -
+  # bind mounts don't refresh to a later stacked mount. Confirmed live
+  # after a real reboot of media (jellyfin started 40s before the NFS
+  # mount went active, leaving it stuck with an empty /media until
+  # manually restarted).
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/docker.service.d/wait-for-nfs.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      {% for m in nfs_client_mounts %}
+      After=mnt-{{ m.name }}.mount
+      Requires=mnt-{{ m.name }}.mount
+      {% endfor %}
+  register: _nfs_docker_override
+
+- name: Reload systemd units
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: _nfs_docker_override is changed
