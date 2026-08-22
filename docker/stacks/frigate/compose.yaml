@@ -1,0 +1,29 @@
+services:
+  frigate:
+    container_name: frigate
+    image: ghcr.io/blakeblackshear/frigate:stable
+    cap_add: [CAP_PERFMON] # needed for OpenVINO GPU stats
+    security_opt: [no-new-privileges:true]
+    stop_grace_period: 30s # allow enough time to shut down the various services
+    shm_size: "512mb" # update for your cameras based on calculation above
+    devices:
+      - /dev/dri/renderD128:/dev/dri/renderD128
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      # config.yml itself is tracked in git (like Caddy's Caddyfile) -
+      # everything else Frigate writes under /config (its db, exports,
+      # etc) lives outside the repo clone, same reasoning as jellyfin/caddy.
+      - ./config.yml:/config/config.yml
+      - /srv/docker/data/frigate/config:/config
+      - /mnt/frigate:/media/frigate
+      - type: tmpfs # Optional: 1GB of memory, reduces SSD/SD Card wear
+        target: /tmp/cache
+        tmpfs:
+          size: 1000000000
+    ports:
+      - "8971:8971" # web UI
+      # - "8554:8554" # RTSP feeds
+      # - "8555:8555/tcp" # WebRTC over tcp
+      # - "8555:8555/udp" # WebRTC over udp
+    env_file: ./.env
+    restart: unless-stopped

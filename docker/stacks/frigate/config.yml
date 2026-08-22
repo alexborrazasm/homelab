@@ -1,0 +1,65 @@
+mqtt:
+  enabled: false
+
+ffmpeg:
+  hwaccel_args: preset-vaapi
+
+detectors:
+  ov:
+    type: openvino
+    device: GPU
+
+model:
+  width: 300
+  height: 300
+  input_tensor: nhwc
+  input_pixel_format: bgr
+  path: /openvino-model/ssdlite_mobilenet_v2.xml
+  labelmap_path: /openvino-model/coco_91cl_bkgr.txt
+
+record:
+  enabled: true
+  retain:
+    days: 30
+    mode: motion
+  alerts:
+    retain:
+      days: 60
+  detections:
+    retain:
+      days: 60
+
+snapshots:
+  enabled: true
+  retain:
+    default: 60
+
+detect:
+  width: 1280
+  height: 720
+  fps: 5
+  enabled: true
+
+cameras:
+  cam_kitchen:
+    enabled: true
+    ffmpeg:
+      inputs:
+        - path: rtsp://{FRIGATE_CAM_KITCHEN_USER}:{FRIGATE_CAM_KITCHEN_PASS}@{FRIGATE_CAM_KITCHEN_IP}:554/stream1
+          roles:
+            - detect
+            - record
+    motion:
+      mask: 0.355,0.047,0.205,0.051,0.204,0.002,0.358,0.002
+  cam_living_room:
+    enabled: true
+    ffmpeg:
+      inputs:
+        - path: rtsp://{FRIGATE_CAM_LIVING_ROOM_USER}:{FRIGATE_CAM_LIVING_ROOM_PASS}@{FRIGATE_CAM_LIVING_ROOM_IP}:554/stream1
+          roles:
+            - detect
+            - record
+    motion:
+      mask: 0.2,0.047,0.358,0.051,0.358,0.002,0.2,0.004
+
+version: 0.16-0
