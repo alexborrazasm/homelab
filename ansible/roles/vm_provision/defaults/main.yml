@@ -3,3 +3,9 @@
 # provisioned by terraform/inventory.tf). VMs set this explicitly via
 # locals.tf's swap_mb per host, adjustable per VM's actual workload.
 vm_provision_swap_mb: 1024
+
+# Extra firewalld ports to open on the public zone, e.g. for a service
+# using network_mode: host that Docker's own iptables integration doesn't
+# cover. Empty by default - most stacks use normal bridge networking with
+# ports:, which firewalld doesn't block. Format: ["8123/tcp"].
+vm_provision_firewalld_ports: []

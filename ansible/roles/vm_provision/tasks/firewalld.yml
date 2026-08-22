@@ -1,0 +1,21 @@
+---
+# Docker's own iptables integration bypasses firewalld's zone filtering
+# for normal bridge-network ports: - only needed for the rare stack using
+# network_mode: host, which binds straight to the host's real network
+# stack and is subject to firewalld like any other host process.
+# Confirmed live: homeassistant on iot (8123, host networking) was
+# unreachable from the LAN until this was opened.
+- name: Check currently open firewalld ports
+  ansible.builtin.command: firewall-cmd --zone=public --list-ports
+  changed_when: false
+  register: _firewalld_current_ports
+
+- name: Open extra firewalld ports
+  ansible.builtin.command: "firewall-cmd --zone=public --add-port={{ item }} --permanent"
+  loop: "{{ vm_provision_firewalld_ports }}"
+  when: item not in _firewalld_current_ports.stdout.split()
+  register: _firewalld_changed
+
+- name: Reload firewalld
+  ansible.builtin.command: firewall-cmd --reload
+  when: _firewalld_changed is changed

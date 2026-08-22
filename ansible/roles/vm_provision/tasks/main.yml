@@ -8,3 +8,7 @@
 
 - name: Set up swap
   ansible.builtin.import_tasks: swap.yml
+
+- name: Open extra firewalld ports
+  ansible.builtin.import_tasks: firewalld.yml
+  when: vm_provision_firewalld_ports | length > 0

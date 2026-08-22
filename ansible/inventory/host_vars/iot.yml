@@ -3,3 +3,8 @@ nfs_client_mounts:
   - name: frigate
     server: "10.10.10.1"
     export: "/mnt/hdd/frigate"
+
+# homeassistant uses network_mode: host, so its port isn't covered by
+# Docker's own iptables integration like everything else.
+vm_provision_firewalld_ports:
+  - "8123/tcp"
