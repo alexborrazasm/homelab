@@ -1,0 +1,15 @@
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: "ghcr.io/home-assistant/home-assistant:stable"
+    network_mode: host # needed for mDNS/SSDP device auto-discovery
+    cap_add: [NET_ADMIN, NET_RAW] # needed for the Bluetooth integration
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - /srv/docker/data/homeassistant/config:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
+    environment:
+      TZ: Europe/Madrid
+    restart: unless-stopped
+    stop_grace_period: 60s
